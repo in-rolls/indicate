@@ -79,10 +79,10 @@ class CrawlerSpider(Spider):
 
         item['address'] = can_per_details[4].xpath('div/p/text()').extract()
         item['age'] = can_per_details[6].xpath('div/p/text()').extract()
-        item['url'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip('\n').strip()
-        item['photo_url'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip('\n').strip()
-        item['photo_filename_with_unique_id'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip('\n').strip()
-        item['affidavit_filename_with_unique_id'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip(
-         '\n').strip()
+        # item['url'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip('\n').strip()
+        # item['photo_url'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip('\n').strip()
+        # item['photo_filename_with_unique_id'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip('\n').strip()
+        # item['affidavit_filename_with_unique_id'] = can_per_details[0].xpath('div[2]/text()').extract()[0].strip(
+         #'\n').strip()
 
         yield item

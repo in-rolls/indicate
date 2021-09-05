@@ -1,0 +1,15 @@
+.*
+!.github
+!.gitignore
+!.gitattributes
+!.travis.yml
+*.pyc
+*.log
+./data
+build/
+lit/
+dist/
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+

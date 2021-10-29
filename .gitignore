@@ -11,5 +11,4 @@ lit/
 dist/
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
-
-
+past/

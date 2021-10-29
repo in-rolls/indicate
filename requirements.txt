@@ -1,0 +1,6 @@
+pandas
+scikit-learn
+joblib
+tqdm
+nltk
+sphinx_rtd_theme

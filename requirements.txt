@@ -1,6 +1,2 @@
-pandas
-scikit-learn
-joblib
+tensorflow
 tqdm
-nltk
-sphinx_rtd_theme

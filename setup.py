@@ -12,7 +12,7 @@ from setuptools.command.test import test as TestCommand
 
 
 # Get the long description from the README file
-with open("README.md", "r", encoding="utf-8") as fh:
+with open("README.rst", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 

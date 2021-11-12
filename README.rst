@@ -1,27 +1,17 @@
-indicate: transliterate indic languages to english
-----------------------------------------------------
-
-.. image:: https://ci.appveyor.com/api/projects/status/5wkr850yy3f6sg6a?svg=true
-    :target: https://ci.appveyor.com/project/soodoku/indicate
-.. image:: https://img.shields.io/pypi/v/indicate.svg
-    :target: https://pypi.python.org/pypi/indicate
-.. image:: https://pepy.tech/badge/indicate
-    :target: https://pepy.tech/project/indicate
+==================================================
+Indicate: Transliterate Indic Languages to English
+==================================================
 
 
 Transliterations to/from Indian languages are still generally low quality. One problem is access to data. Another is that there is no standard  transliteration.
-
-For Hindi--English, we build novel dataset for names using the ESPNcricinfo. For instance, see `here <https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__ for Hindi version of the `English scorecard <https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__. 
-
+For Hindi--English, we build novel dataset for names using the ESPNcricinfo. For instance, see `here <https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__ for hindi version of the `english scorecard <https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__.
 We also create a dataset from `election affidavits <https://affidavit.eci.gov.in/CandidateCustomFilter>`__
-
 We also exploit the `Google Dakshina dataset <https://github.com/google-research-datasets/dakshina>`__.
 
 To overcome the fact that there isn't one standard way of transliteration, we provide k-best transliterations.
 
 Install
-----------
-
+-------
 We strongly recommend installing `indicate` inside a Python virtual environment
 (see `venv documentation <https://docs.python.org/3/library/venv.html#creating-virtual-environments>`__)
 
@@ -30,82 +20,59 @@ We strongly recommend installing `indicate` inside a Python virtual environment
     pip install indicate
 
 General API
-------------------
-
+-----------
+1. transliterate.hindi2english will take Hindi text and translate into English.
 
 Examples
-----------
+--------
+::
 
+  from indicate import transliterate
+  english_translated = transliterate.hindi2english("हिंदी")
+  print(english_translated)
+
+output -
+hindi
 
 Functions
 ----------
+We expose 1 functions, which will take Hindi text and translates into English.
 
-We expose 6 functions, each of which either take a pandas DataFrame or a
-CSV. If the CSV doesn't have a header, we make some assumptions about
-where the data is:
+- **transliterate.hindi2english(input)**
 
-- **census\_ln(df, namecol, year=2000)**
+  - What it does:
 
-  -  What it does:
+    - Converts given hindi text into English language
 
-     - Removes extra space
-     - For names in the `census file <ethnicolr/data/census>`__, it appends 
-       relevant data of what probability the name provided is of a certain race/ethnicity
+  - Output
 
-
- +------------+--------------------------------------------------------------------------------------------------------------------------+
- | Parameters |                                                                                                                          |
- +============+==========================================================================================================================+
- |            | **df** : *{DataFrame, csv}* Pandas dataframe of CSV file contains the names of the individual to be inferred             |
- +------------+--------------------------------------------------------------------------------------------------------------------------+
- |            | **namecol** : *{string, list, int}* string or list of the name or location of the column containing the last name        |
- +------------+--------------------------------------------------------------------------------------------------------------------------+
- |            | **Year** : *{2000, 2010}, default=2000* year of census to use                                                            |
- +------------+--------------------------------------------------------------------------------------------------------------------------+
-
-
--  Output: Appends the following columns to the pandas DataFrame or CSV: 
-   pctwhite, pctblack, pctapi, pctaian, pct2prace, pcthispanic. 
-   See `here <https://github.com/appeler/ethnicolr/blob/master/ethnicolr/data/census/census_2000.pdf>`__ 
-   for what the column names mean.
-
-   ::
-
-      >>> import pandas as pd
-
-      >>> from ethnicolr import census_ln, pred_census_ln
-
-      >>> names = [{'name': 'smith'},
-      ...         {'name': 'zhang'},
-      ...         {'name': 'jackson'}]
-
-      >>> df = pd.DataFrame(names)
-
-      >>> df
-            name
-      0    smith
-      1    zhang
-      2  jackson
-
-      >>> census_ln(df, 'name')
-            name pctwhite pctblack pctapi pctaian pct2prace pcthispanic
-      0    smith    73.35    22.22   0.40    0.85      1.63        1.56
-      1    zhang     0.61     0.09  98.16    0.02      0.96        0.16
-      2  jackson    41.93    53.02   0.31    1.04      2.18        1.53
-
-
+    - Returns text in English Language
 
 Data
-----------
+----
+The dataset used to train the model.
 
+- `Indian Election affidavits <https://affidavit.eci.gov.in/CandidateCustomFilter>`__
+
+- `Google Dakshina dataset <https://github.com/google-research-datasets/dakshina>`__
+
+- `ESPN Cric Info <https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__ for hindi version of the `english scorecard <https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__.
 
 Evaluation
-------------------------------------------
+----------
+Model was evaluated on test dataset of Google Dakshina dataset, Model predicted 45.87% exact matches.
+Below is the edit distance metrics on test dataset (0.0 mean exact match, the farther away from 0.0,
+the difference is more between predicted text and actual text)
+
+.. image:: data:image/png;base64,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
+   :width: 100
+   :alt: Edit distance metrics of model on Google Dakshina test dataset
+
 
 Authors
-----------
+-------
 
-Rajasekhar Chintalapati and Gaurav Sood
+Rajashekar Chintalapati and Gaurav Sood
 
 Contributor Code of Conduct
 ---------------------------------

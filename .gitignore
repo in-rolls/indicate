@@ -13,3 +13,4 @@ dist/
 */.ipynb_checkpoints/*
 past/
 .venv
+*.egg-info*

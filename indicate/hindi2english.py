@@ -1,5 +1,4 @@
-import sys
-import argparse
+from .base import Base
 
 from keras.models import Model
 from keras.layers import Input
@@ -7,10 +6,7 @@ from keras.layers import Input
 import numpy as np
 
 
-from .transliterate import Transliterate
-
-
-class HindiToEnglish(Transliterate):
+class HindiToEnglish(Base):
     MODELFN = "data/model/hindi_to_english/model.h5"
     INPUT_VOCAB = "data/model/hindi_to_english/input_token_index.json"
     TARGET_VOCAB = "data/model/hindi_to_english/target_token_index.json"
@@ -100,26 +96,3 @@ class HindiToEnglish(Transliterate):
             states_value = [d_h, d_c]
 
         return decoded_sentence
-
-
-transliterate_hindi_to_english = HindiToEnglish.transliterate
-
-
-def main(argv=sys.argv[1:]):
-    title = "Transliterate from Hindi to English"
-    parser = argparse.ArgumentParser(description=title)
-    parser.add_argument("--type", default=None, help="hin2eng")
-    parser.add_argument("--input", default=None, help="Hindi text")
-    args = parser.parse_args(argv)
-    print(args)
-    if not args.input or not args.type:
-        return -1
-
-    output = transliterate_hindi_to_english(args.input)
-    print(output)
-
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

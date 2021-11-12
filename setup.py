@@ -57,7 +57,7 @@ class Tox(TestCommand):
 
 setup(
     name="indicate",
-    version="0.0.1",
+    version="0.0.3",
     description="Transliterations to/from Indian languages",
     long_description=long_description,
     # The project's main homepage.
@@ -112,8 +112,9 @@ setup(
     # installed, specify them here.  If using Python 2.6 or less, then these
     # have to be included in MANIFEST.in as well.
     package_data={
-        "transliterate": [
-            "data/model/hindi_to_english/*.*",
+        "indicate": [
+            "data/model/hindi_to_english/*.h5",
+            "data/model/hindi_to_english/*.json",
             "notebooks/*.ipynb",
         ],
     },
@@ -124,7 +125,7 @@ setup(
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # pip to create the appropriate form of executable for the target platform.
     entry_points={
-        "console_scripts": ["hindi_english=transliterate.hindi_english:main"],
+        "console_scripts": ["hindi2english=indicate.transliterate:main"],
     },
     cmdclass={
         "develop": PostDevelopCommand,

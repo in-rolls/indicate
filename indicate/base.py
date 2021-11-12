@@ -7,9 +7,12 @@ import json
 from keras.models import load_model
 from pkg_resources import resource_filename
 from .utils import download_file, REPO_BASE_URL
+from .logging import get_logger
+
+logger = get_logger()
 
 
-class Transliterate(object):
+class Base(object):
     MODELFN = None
     INPUT_VOCAB = None
     TARGET_VOCAB = None
@@ -27,12 +30,12 @@ class Transliterate(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             if not os.path.exists(model_fn) or latest:
-                print("Downloading model data from the server ({0!s})...".format(model_fn))
+                logger.debug("Downloading model data from the server ({0!s})...".format(model_fn))
                 if not download_file(REPO_BASE_URL + cls.MODELFN, model_fn):
-                    print("ERROR: Cannot download model data file")
+                    logger.error("ERROR: Cannot download model data file")
                     failed = True
             else:
-                print("Using model data from {0!s}...".format(model_fn))
+                logger.debug("Using model data from {0!s}...".format(model_fn))
 
         if cls.INPUT_VOCAB:
             input_vocab_file = resource_filename(__name__, cls.INPUT_VOCAB)
@@ -40,12 +43,12 @@ class Transliterate(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             if not os.path.exists(input_vocab_file) or latest:
-                print("Downloading model data from the server ({0!s})...".format(input_vocab_file))
+                logger.debug("Downloading model data from the server ({0!s})...".format(input_vocab_file))
                 if not download_file(REPO_BASE_URL + cls.INPUT_VOCAB, input_vocab_file):
-                    print("ERROR: Cannot download input vocabulary file")
+                    logger.error("ERROR: Cannot download input vocabulary file")
                     failed = True
             else:
-                print("Using input vocab data from {0!s}...".format(input_vocab_file))
+                logger.debug("Using input vocab data from {0!s}...".format(input_vocab_file))
 
         if cls.TARGET_VOCAB:
             output_vocab_file = resource_filename(__name__, cls.TARGET_VOCAB)
@@ -53,20 +56,17 @@ class Transliterate(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             if not os.path.exists(output_vocab_file) or latest:
-                print("Downloading model data from the server ({0!s})...".format(output_vocab_file))
+                logger.debug("Downloading model data from the server ({0!s})...".format(output_vocab_file))
                 if not download_file(REPO_BASE_URL + cls.TARGET_VOCAB, output_vocab_file):
-                    print("ERROR: Cannot download target vocabulary file")
+                    logger.error("ERROR: Cannot download target vocabulary file")
                     failed = True
             else:
-                print("Using output vocab data from {0!s}...".format(output_vocab_file))
+                logger.debug("Using output vocab data from {0!s}...".format(output_vocab_file))
 
         if not failed:
-            print("Loading model ...")
             model = load_model(model_fn)
-            print("Loading input vocabulary ...")
             with open(input_vocab_file, "r") as fh:
                 input_vocab = json.load(fh)
-            print("Loading input vocabulary ...")
             with open(output_vocab_file, "r") as fh:
                 target_vocab = json.load(fh)
 

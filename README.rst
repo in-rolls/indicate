@@ -2,6 +2,17 @@
 Indicate: Transliterate Indic Languages to English
 ==================================================
 
+.. image:: https://app.travis-ci.com/in-rolls/indicate.svg?branch=master
+    :target: https://travis-ci.org/in-rolls/indicate
+.. image:: https://ci.appveyor.com/api/projects/status/5wkr850yy3f6sg6a?svg=true
+    :target: https://ci.appveyor.com/project/soodoku/indicate
+.. image:: https://img.shields.io/pypi/v/indicate.svg
+    :target: https://pypi.python.org/pypi/indicate
+.. image:: https://readthedocs.org/projects/indicate/badge/?version=latest
+    :target: http://notnews.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+.. image:: https://pepy.tech/badge/indicate
+    :target: https://pepy.tech/project/indicate
 
 Transliterations to/from Indian languages are still generally low quality. One problem is access to data. Another is that there is no standard  transliteration.
 For Hindi--English, we build novel dataset for names using the ESPNcricinfo. For instance, see `here <https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__ for hindi version of the `english scorecard <https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__.

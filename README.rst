@@ -64,8 +64,7 @@ Model was evaluated on test dataset of Google Dakshina dataset, Model predicted 
 Below is the edit distance metrics on test dataset (0.0 mean exact match, the farther away from 0.0,
 the difference is more between predicted text and actual text)
 
-.. image:: images/h2e_ed.png
-   :width: 100
+.. image:: https://github.com/in-rolls/indicate/raw/master/images/h2e_ed.png
    :alt: Edit distance metrics of model on Google Dakshina test dataset
 
 

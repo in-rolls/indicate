@@ -3,25 +3,33 @@ build: false
 environment:
   matrix:
     - PYTHON_VERSION: 3.6
-      MINICONDA: C:\Miniconda36-x64
+      MINICONDA: C:\\Miniconda36-x64
     - PYTHON_VERSION: 3.7
-      MINICONDA: C:\Miniconda37-x64
+      MINICONDA: C:\\Miniconda37-x64
     - PYTHON_VERSION: 3.8
-      MINICONDA: C:\Miniconda38-x64
+      MINICONDA: C:\\Miniconda38-x64
 
 init:
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
 
 install:
-  - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
-  - conda config --set always_yes yes --set changeps1 no
-  - conda config --add channels conda-forge
-  - conda update -q conda
-  - conda info -a
-  - "conda create -q -n test-environment python=%PYTHON_VERSION% nose"
-  - activate test-environment
-  - pip install .
-  - pip install -r requirements.txt
+  # Activate `conda`
+  - cmd: call %MINICONDA%\Scripts\activate.bat
+
+  # Configure conda
+  - cmd: conda config --add channels conda-forge
+  - cmd: conda config --set show_channel_urls true
+  - cmd: conda config --set always_yes yes --set changeps1 no
+
+  # Create conda environment
+  - cmd: conda update -q conda
+  - cmd: conda info -a
+
+  # setup python environment
+  - cmd: conda create -q -n test-environment python=%PYTHON_VERSION% nose
+  - cmd: call activate test-environment
+  - cmd: pip install .
+  - cmd: pip install -r requirements.txt
 
 test_script:
   - nosetests

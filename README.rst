@@ -47,21 +47,21 @@ hindi
 
 Functions
 ----------
-We expose 1 functions, which will take Hindi text and translates into English.
+We expose 1 function, which will take Hindi text and transliterate it to English.
 
 - **transliterate.hindi2english(input)**
 
   - What it does:
 
-    - Converts given hindi text into English language
+    - Converts given hindi text into English alphabet
 
   - Output
 
-    - Returns text in English Language
+    - Returns text in English
 
 Data
 ----
-The dataset used to train the model.
+The datasets used to train the model:
 
 - `Indian Election affidavits <https://affidavit.eci.gov.in/CandidateCustomFilter>`__
 
@@ -76,6 +76,7 @@ Below is the edit distance metrics on test dataset (0.0 mean exact match, the fa
 the difference is more between predicted text and actual text)
 
 .. image:: https://github.com/in-rolls/indicate/raw/master/images/h2e_ed.png
+   :width: 400
    :alt: Edit distance metrics of model on Google Dakshina test dataset
 
 

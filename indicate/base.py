@@ -4,7 +4,6 @@
 import os
 import json
 
-from keras.models import load_model
 from pkg_resources import resource_filename
 from .utils import download_file, REPO_BASE_URL
 from .logging import get_logger
@@ -19,7 +18,7 @@ class Base(object):
 
     @classmethod
     def load_model_data(cls, latest=False):
-        model = None
+        model_path = None
         input_vocab = None
         target_vocab = None
         failed = False
@@ -36,6 +35,7 @@ class Base(object):
                     failed = True
             else:
                 logger.debug("Using model data from {0!s}...".format(model_fn))
+            model_path = path
 
         if cls.INPUT_VOCAB:
             input_vocab_file = resource_filename(__name__, cls.INPUT_VOCAB)
@@ -64,10 +64,9 @@ class Base(object):
                 logger.debug("Using output vocab data from {0!s}...".format(output_vocab_file))
 
         if not failed:
-            model = load_model(model_fn)
             with open(input_vocab_file, "r") as fh:
                 input_vocab = json.load(fh)
             with open(output_vocab_file, "r") as fh:
                 target_vocab = json.load(fh)
 
-        return model, input_vocab, target_vocab
+        return model_path, input_vocab, target_vocab

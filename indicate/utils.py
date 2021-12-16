@@ -8,7 +8,7 @@ import requests
 
 REPO_BASE_URL = (
     os.environ.get("TRANSLITERATE_HIN2ENG_DATA_URL")
-    or "https://github.com/soodoku/transliterate/raw/master/transliterate/data/model/"
+    or "https://github.com/in-rolls/indicate/raw/master/indicate/data/model/"
 )
 
 

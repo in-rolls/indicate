@@ -57,7 +57,7 @@ class Tox(TestCommand):
 
 setup(
     name="indicate",
-    version="0.0.3",
+    version="0.0.4",
     description="Transliterations to/from Indian languages",
     long_description=long_description,
     # The project's main homepage.
@@ -99,7 +99,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=["tensorflow", "tqdm"],
+    install_requires=["tqdm", "tensorflow", "tensorflow_addons"],
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
     # for example:
@@ -113,7 +113,9 @@ setup(
     # have to be included in MANIFEST.in as well.
     package_data={
         "indicate": [
-            "data/model/hindi_to_english/*.h5",
+            "data/model/hindi_to_english/saved_weights/checkpoint",
+            "data/model/hindi_to_english/saved_weights/encoder.*",
+            "data/model/hindi_to_english/saved_weights/decoder.*",
             "data/model/hindi_to_english/*.json",
             "notebooks/*.ipynb",
         ],

@@ -69,9 +69,12 @@ The datasets used to train the model:
 
 - `ESPN Cric Info <https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__ for hindi version of the `english scorecard <https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard>`__.
 
+- `IIT Bombay English-Hindi Corpus <https://www.cfilt.iitb.ac.in/iitb_parallel/>`__
+
 Evaluation
 ----------
-Model was evaluated on test dataset of Google Dakshina dataset, Model predicted 45.87% exact matches.
+Model was evaluated on test dataset of Google Dakshina dataset, Model predicted 73.64% exact matches.
+`Indic-trans <https://github.com/libindic/indic-trans>`__ predicted 63.12% exact matches on Google Dakshina dataset.
 Below is the edit distance metrics on test dataset (0.0 mean exact match, the farther away from 0.0,
 the difference is more between predicted text and actual text)
 

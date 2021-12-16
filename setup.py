@@ -57,7 +57,7 @@ class Tox(TestCommand):
 
 setup(
     name="indicate",
-    version="0.0.4",
+    version="0.0.5",
     description="Transliterations to/from Indian languages",
     long_description=long_description,
     # The project's main homepage.

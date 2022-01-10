@@ -139,7 +139,7 @@ def evaluate_sentence(sentence, units, input_lang_tokenizer, target_lang_tokeniz
     return outputs.sample_id.numpy()
 
 
-def translate(sentence, units, input_lang_tokenizer, target_lang_tokenizer, encoder, decoder, max_length_input):
+def transliterate(sentence, units, input_lang_tokenizer, target_lang_tokenizer, encoder, decoder, max_length_input):
     result = ""
     try:
         result = evaluate_sentence(
@@ -147,5 +147,5 @@ def translate(sentence, units, input_lang_tokenizer, target_lang_tokenizer, enco
         )
         result = sequence_to_chars(target_lang_tokenizer, result[0])
     except Exception:
-        logger.error(f"Not able to translate {sentence}")
+        logger.error(f"Not able to transliterate {sentence}")
     return result.strip("$")

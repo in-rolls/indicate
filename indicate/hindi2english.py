@@ -1,12 +1,25 @@
+import signal
 from .logging import get_logger
 from .base import Base
 
 import tensorflow as tf
 
 from .encoder import Encoder
-from .decoder import Decoder, translate
+from .decoder import Decoder, transliterate
 
 logger = get_logger()
+
+
+class TimeoutException(Exception):  # Custom exception class
+    pass
+
+
+def timeout_handler(signum, frame):  # Custom signal handler
+    raise TimeoutException
+
+
+# Change the behavior of SIGALRM
+signal.signal(signal.SIGALRM, timeout_handler)
 
 
 class HindiToEnglish(Base):
@@ -85,15 +98,24 @@ class HindiToEnglish(Base):
             cls.weights_loaded = True
 
         # Predictions
-        target = translate(
-            input,
-            cls.units,
-            cls.input_lang_tokenizer,
-            cls.target_lang_tokenizer,
-            cls.encoder,
-            cls.decoder,
-            cls.max_length_input,
-        )
-        logger.debug(f"Model predicted {target}")
+        # this is needed because sometimes BasicDecoder is going into loop
+        # and not exiting for sentences like 'पति स्व.गंगा भगत'
+        signal.alarm(10)
+        target = ""
+        try:
+            target = transliterate(
+                input,
+                cls.units,
+                cls.input_lang_tokenizer,
+                cls.target_lang_tokenizer,
+                cls.encoder,
+                cls.decoder,
+                cls.max_length_input,
+            )
+            logger.debug(f"Model predicted {target}")
+        except TimeoutException:
+            logger.error(f"Giving up on transliterating {input} after 10 seconds")
+        except Exception:
+            logger.error(f"Not able to transliterate {input}")
 
         return target

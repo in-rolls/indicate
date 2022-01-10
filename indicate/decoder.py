@@ -140,8 +140,12 @@ def evaluate_sentence(sentence, units, input_lang_tokenizer, target_lang_tokeniz
 
 
 def translate(sentence, units, input_lang_tokenizer, target_lang_tokenizer, encoder, decoder, max_length_input):
-    result = evaluate_sentence(
-        sentence, units, input_lang_tokenizer, target_lang_tokenizer, encoder, decoder, max_length_input
-    )
-    result = sequence_to_chars(target_lang_tokenizer, result[0])
+    result = ""
+    try:
+        result = evaluate_sentence(
+            sentence, units, input_lang_tokenizer, target_lang_tokenizer, encoder, decoder, max_length_input
+        )
+        result = sequence_to_chars(target_lang_tokenizer, result[0])
+    except Exception:
+        logger.error(f"Not able to translate {sentence}")
     return result.strip("$")

@@ -17,7 +17,7 @@ class TimeoutException(Exception):  # Custom exception class
 
 
 def timeout_handler(signum, frame):  # Custom signal handler
-    raise TimeoutException("Timeout!")
+    raise TimeoutException("Timeout!", "")
 
 
 # Change the behavior of SIGALRM

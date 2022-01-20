@@ -11,11 +11,13 @@ logger = get_logger()
 
 
 class TimeoutException(Exception):  # Custom exception class
-    pass
+    def __init__(self, message, errors):
+        super(TimeoutException, self).__init__(message)
+        self.errors = errors
 
 
 def timeout_handler(signum, frame):  # Custom signal handler
-    raise TimeoutException
+    raise TimeoutException("Timeout!")
 
 
 # Change the behavior of SIGALRM
@@ -113,9 +115,11 @@ class HindiToEnglish(Base):
                 cls.max_length_input,
             )
             logger.debug(f"Model predicted {target}")
-        except TimeoutException:
-            logger.error(f"Giving up on transliterating {input} after 10 seconds")
-        except Exception:
-            logger.error(f"Not able to transliterate {input}")
+        except TimeoutException as te:
+            logger.error(f"Giving up on transliterating {input} due to {te}")
+        except Exception as exe:
+            logger.error(f"Not able to transliterate {input} due to {exe}")
+        else:
+            signal.alarm(0)
 
         return target

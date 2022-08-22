@@ -1,4 +1,3 @@
-import signal
 from .logging import get_logger
 from .base import Base
 
@@ -7,21 +6,10 @@ import tensorflow as tf
 from .encoder import Encoder
 from .decoder import Decoder, transliterate
 
+from func_timeout import func_timeout, FunctionTimedOut
+
+
 logger = get_logger()
-
-
-class TimeoutException(Exception):  # Custom exception class
-    def __init__(self, message, errors):
-        super(TimeoutException, self).__init__(message)
-        self.errors = errors
-
-
-def timeout_handler(signum, frame):  # Custom signal handler
-    raise TimeoutException("Timeout!", "")
-
-
-# Change the behavior of SIGALRM
-signal.signal(signal.SIGALRM, timeout_handler)
 
 
 class HindiToEnglish(Base):
@@ -102,24 +90,26 @@ class HindiToEnglish(Base):
         # Predictions
         # this is needed because sometimes BasicDecoder is going into loop
         # and not exiting for sentences like 'पति स्व.गंगा भगत'
-        signal.alarm(10)
         target = ""
         try:
-            target = transliterate(
-                input,
-                cls.units,
-                cls.input_lang_tokenizer,
-                cls.target_lang_tokenizer,
-                cls.encoder,
-                cls.decoder,
-                cls.max_length_input,
+            target = func_timeout(
+                10,
+                transliterate,
+                args=(
+                    input,
+                    cls.units,
+                    cls.input_lang_tokenizer,
+                    cls.target_lang_tokenizer,
+                    cls.encoder,
+                    cls.decoder,
+                    cls.max_length_input,
+                ),
             )
+
             logger.debug(f"Model predicted {target}")
-        except TimeoutException as te:
-            logger.error(f"Giving up on transliterating {input} due to {te}")
+        except FunctionTimedOut as fex:
+            logger.error(f"Not able to transliterate {input} within 10 seconds, exiting with {fex}")
         except Exception as exe:
             logger.error(f"Not able to transliterate {input} due to {exe}")
-        else:
-            signal.alarm(0)
 
         return target

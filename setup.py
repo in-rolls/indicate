@@ -57,7 +57,7 @@ class Tox(TestCommand):
 
 setup(
     name="indicate",
-    version="0.0.9",
+    version="0.1.0",
     description="Transliterations to/from Indian languages",
     long_description=long_description,
     # The project's main homepage.
@@ -99,7 +99,7 @@ setup(
     # your project is installed. For an analysis of "install_requires" vs pip's
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    install_requires=["tqdm", "tensorflow", "tensorflow_addons"],
+    install_requires=["tqdm", "func-timeout", "tensorflow", "tensorflow_addons"],
     # List additional groups of dependencies here (e.g. development
     # dependencies). You can install these using the following syntax,
     # for example:

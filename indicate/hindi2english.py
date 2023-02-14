@@ -38,6 +38,7 @@ class HindiToEnglish(Base):
     def transliterate(cls, input, latest=False):
         """
         Transliterate from Hindi to English.
+
         Args:
             input (str): Hindi text
         Returns:

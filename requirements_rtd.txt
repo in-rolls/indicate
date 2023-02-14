@@ -1,0 +1,5 @@
+tensorflow
+tensorflow_addons
+tqdm
+func-timeout
+wheel>=0.38.0 # not directly required, pinned by Snyk to avoid a vulnerability

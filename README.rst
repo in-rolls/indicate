@@ -4,8 +4,6 @@ Indicate: Transliterate Indic Languages to English
 
 .. image:: https://app.travis-ci.com/in-rolls/indicate.svg?branch=master
     :target: https://travis-ci.org/in-rolls/indicate
-.. image:: https://ci.appveyor.com/api/projects/status/5wkr850yy3f6sg6a?svg=true
-    :target: https://ci.appveyor.com/project/soodoku/indicate
 .. image:: https://img.shields.io/pypi/v/indicate.svg
     :target: https://pypi.python.org/pypi/indicate
 .. image:: https://readthedocs.org/projects/indicate/badge/?version=latest

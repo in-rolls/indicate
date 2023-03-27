@@ -4,7 +4,7 @@ import os
 
 from tqdm import tqdm
 import requests
-
+from typing import Union
 
 REPO_BASE_URL = (
     os.environ.get("TRANSLITERATE_HIN2ENG_DATA_URL")
@@ -12,11 +12,11 @@ REPO_BASE_URL = (
 )
 
 
-def download_file(url, target):
+def download_file(url: str, target: typing.Union[str, bytes, os.PathLike]) -> None:
 
     if "TRANSLITERATE_AUTH_TOKEN" in os.environ:
         auth_token = os.environ["TRANSLITERATE_AUTH_TOKEN"]
-        headers = {"Authorization": "token {0!s}".format(auth_token)}
+        headers = {f"Authorization": "token {auth_token}"}
     else:
         headers = {}
 
@@ -33,7 +33,6 @@ def download_file(url, target):
         with open(target, "wb") as f:
             for data in tqdm(r.iter_content(chunk_size), total=total_size, unit_scale=chunk_size / 1024, unit="KB"):
                 f.write(data)
-        return True
     else:
-        print("ERROR: status_code={0:d}".format(r.status_code))
-        return False
+        raise Exception(f"Error: Status code is not 200. Status code {r.status_code}")
+

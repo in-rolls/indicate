@@ -5,7 +5,6 @@ from .logging import get_logger
 
 logger = get_logger()
 
-
 class Decoder(tf.keras.Model):
     def __init__(
         self,

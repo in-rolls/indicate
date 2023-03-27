@@ -35,7 +35,7 @@ class HindiToEnglish(Base):
     decoder = None
 
     @classmethod
-    def transliterate(cls, input, latest=False):
+    def transliterate(cls, input: str, latest:bool=False) -> str:
         """
         Transliterate from Hindi to English.
 

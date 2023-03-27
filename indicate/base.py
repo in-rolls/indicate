@@ -29,12 +29,12 @@ class Base(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             if not os.path.exists(model_fn) or latest:
-                logger.debug("Downloading model data from the server ({0!s})...".format(model_fn))
+                logger.debug(f"Downloading model data from the server ({model_fn})...")
                 if not download_file(REPO_BASE_URL + cls.MODELFN, model_fn):
                     logger.error("ERROR: Cannot download model data file")
                     failed = True
             else:
-                logger.debug("Using model data from {0!s}...".format(model_fn))
+                logger.debug(f"Using model data from {model_fn}...")
             model_path = path
 
         if cls.INPUT_VOCAB:
@@ -43,12 +43,12 @@ class Base(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             if not os.path.exists(input_vocab_file) or latest:
-                logger.debug("Downloading model data from the server ({0!s})...".format(input_vocab_file))
+                logger.debug(f"Downloading model data from the server ({input_vocab_file})...")
                 if not download_file(REPO_BASE_URL + cls.INPUT_VOCAB, input_vocab_file):
                     logger.error("ERROR: Cannot download input vocabulary file")
                     failed = True
             else:
-                logger.debug("Using input vocab data from {0!s}...".format(input_vocab_file))
+                logger.debug(f"Using input vocab data from {input_vocab_file}...")
 
         if cls.TARGET_VOCAB:
             output_vocab_file = resource_filename(__name__, cls.TARGET_VOCAB)
@@ -56,12 +56,12 @@ class Base(object):
             if not os.path.exists(path):
                 os.makedirs(path)
             if not os.path.exists(output_vocab_file) or latest:
-                logger.debug("Downloading model data from the server ({0!s})...".format(output_vocab_file))
+                logger.debug(f"Downloading model data from the server ({output_vocab_file})...")
                 if not download_file(REPO_BASE_URL + cls.TARGET_VOCAB, output_vocab_file):
                     logger.error("ERROR: Cannot download target vocabulary file")
                     failed = True
             else:
-                logger.debug("Using output vocab data from {0!s}...".format(output_vocab_file))
+                logger.debug(f"Using output vocab data from {output_vocab_file}...")
 
         if not failed:
             with open(input_vocab_file, "r") as fh:

@@ -12,7 +12,7 @@ REPO_BASE_URL = (
 )
 
 
-def download_file(url: str, target: typing.Union[str, bytes, os.PathLike]) -> None:
+def download_file(url: str, target: Union[str, bytes, os.PathLike]) -> None:
 
     if "TRANSLITERATE_AUTH_TOKEN" in os.environ:
         auth_token = os.environ["TRANSLITERATE_AUTH_TOKEN"]

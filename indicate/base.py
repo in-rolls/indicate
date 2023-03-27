@@ -17,7 +17,7 @@ class Base(object):
     TARGET_VOCAB = None
 
     @classmethod
-    def load_model_data(cls, latest=False):
+    def load_model_data(cls, latest: bool=False):
         model_path = None
         input_vocab = None
         target_vocab = None

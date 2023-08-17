@@ -9,7 +9,7 @@ Indicate: Transliterate Indic Languages to English
 .. image:: https://readthedocs.org/projects/indicate/badge/?version=latest
     :target: http://notnews.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
-.. image:: https://pepy.tech/badge/indicate
+.. image:: https://static.pepy.tech/badge/indicate
     :target: https://pepy.tech/project/indicate
 
 Transliterations to/from Indian languages are still generally low quality. One problem is access to data. Another is that there is no standard  transliteration.

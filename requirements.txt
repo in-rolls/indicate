@@ -1,5 +1,4 @@
-tensorflow
-tensorflow_addons
+tensorflow==2.18.0
 tqdm
 func-timeout
 wheel>=0.38.0 # not directly required, pinned by Snyk to avoid a vulnerability

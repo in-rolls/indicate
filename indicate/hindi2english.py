@@ -1,12 +1,8 @@
 import json
 from typing import Any, List, Optional, Tuple
+from importlib.resources import files
 
 from .logging import get_logger
-
-try:
-    from importlib.resources import files
-except ImportError:
-    from importlib_resources import files
 
 import tensorflow as tf
 from func_timeout import FunctionTimedOut, func_timeout

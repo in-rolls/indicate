@@ -27,6 +27,8 @@ Install
 We strongly recommend installing `indicate` inside a Python virtual environment
 (see `venv documentation <https://docs.python.org/3/library/venv.html#creating-virtual-environments>`__)
 
+**Requirements:** Python 3.10 or higher
+
 ::
 
     pip install indicate
@@ -59,6 +61,40 @@ We expose 1 function, which will take Hindi text and transliterate it to English
   - Output
 
     - Returns text in English
+
+Testing Locally
+---------------
+To test the package locally, follow these steps:
+
+1. **Clone the repository**::
+
+    git clone https://github.com/in-rolls/indicate.git
+    cd indicate
+
+2. **Create and activate a virtual environment**::
+
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+3. **Install in development mode**::
+
+    pip install -e .
+
+4. **Run tests**::
+
+    # Run all tests
+    python -m unittest discover indicate/tests/
+
+    # Run specific test
+    python -m unittest indicate.tests.test_010_hindi_translate
+
+5. **Test the transliteration**::
+
+    # Command line usage
+    hindi2english --type hin2eng --input "हिंदी"
+
+    # Python usage
+    python -c "from indicate import transliterate; print(transliterate.hindi2english('हिंदी'))"
 
 Data
 ----

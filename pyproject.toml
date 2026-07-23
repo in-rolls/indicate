@@ -43,16 +43,12 @@ docs = [
     "py-canon @ git+https://github.com/gojiplus/py-canon@v1",
 ]
 dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "pytest-xdist>=3.0",
-    "ruff>=0.7.0",
-    "mypy>=1.0",
-    "types-tqdm>=4.66",
+    "ruff>=0.14",
+    "pyright>=1.1.390",
     "pydoclint>=0.5",
-    "black>=24.0",
-    "isort>=5.0",
-    "pre-commit>=3.0",
+    "pre-commit>=4",
+    "types-tqdm>=4.66",
+    { include-group = "test" },
 ]
 test = [
     "pytest>=7.0",

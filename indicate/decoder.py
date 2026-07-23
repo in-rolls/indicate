@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 from torch import nn
-from torch.nn import functional as F
+from torch.nn import functional as F  # noqa: N812 - torch convention
 
 
 class Decoder(nn.Module):

@@ -56,8 +56,8 @@ class Seq2SeqTransliterator:
 
     max_length_input: int = 64
     max_length_output: int = 64
-    START_TOKEN: str = "^"
-    END_TOKEN: str = "$"
+    START_TOKEN: str = "^"  # noqa: S105 - seq2seq framing token, not a secret
+    END_TOKEN: str = "$"  # noqa: S105 - seq2seq framing token, not a secret
 
     # Decoding: 1 = greedy; >1 enables length-normalized beam search. Beam search
     # is the shipped default (+1.5 pts exact-match on Hindi Dakshina vs greedy).
@@ -134,16 +134,17 @@ class Seq2SeqTransliterator:
 
     @classmethod
     def transliterate(cls, input: str, n: int = 1) -> str | list[str]:
-        """
-        Transliterate one text to English (thin wrapper over ``transliterate_batch``).
+        """Transliterate one text (thin wrapper over ``transliterate_batch``).
 
         Args:
             input: source-language text
             n: number of candidates. ``n == 1`` (default) returns a single
                 best string; ``n > 1`` returns a list of up to ``n`` ranked
                 candidates (requires beam search).
+
         Returns:
             str when ``n == 1``; list[str] when ``n > 1``.
+
         Raises:
             TypeError: If input is None
             ValueError: If input is not a string
@@ -158,8 +159,7 @@ class Seq2SeqTransliterator:
     def transliterate_batch(
         cls, inputs: list[str], n: int = 1
     ) -> list[str] | list[list[str]]:
-        """
-        Transliterate many texts at once — the batched decode engine.
+        """Transliterate many texts at once — the batched decode engine.
 
         All words across all inputs are decoded in a single batch (one encoder /
         decoder pass per step), which is much faster than calling ``transliterate``
@@ -168,12 +168,10 @@ class Seq2SeqTransliterator:
         """
         if not cls._weights_loaded:
             cls._load_weights()
-        assert (
-            cls.input_lang_tokenizer is not None
-            and cls.target_lang_tokenizer is not None
-            and cls.encoder is not None
-            and cls.decoder is not None
-        )
+        assert cls.input_lang_tokenizer is not None  # noqa: S101 - narrowing
+        assert cls.target_lang_tokenizer is not None  # noqa: S101 - narrowing
+        assert cls.encoder is not None  # noqa: S101 - narrowing
+        assert cls.decoder is not None  # noqa: S101 - narrowing
 
         # Split each text into words (decoded independently to avoid drift); keep
         # the per-text spans so we can reassemble.

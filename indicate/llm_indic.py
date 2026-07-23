@@ -1,23 +1,39 @@
-"""
-LLM-based transliteration for Indic languages using LiteLLM.
-"""
+"""LLM-based transliteration for Indic languages using LiteLLM."""
 
 from __future__ import annotations
 
 import json
 import os
+from typing import Any, ClassVar
 
 from litellm import completion
 
 from .logging import get_logger
 
+
+def _response_text(response: Any) -> str:
+    """Extract the message text from a non-streaming litellm response."""
+    return response.choices[0].message.content or ""
+
+
 logger = get_logger()
 
 
 class IndicLLMTransliterator:
-    """LLM-based transliterator for Indic languages."""
+    """LLM-based transliterator for Indic languages.
 
-    INDIC_LANGUAGES = {
+    Args:
+        source_lang: Source language (e.g., 'hindi', 'tamil')
+        target_lang: Target language (e.g., 'english')
+        provider: LLM provider (openai, anthropic, etc.). Auto-detected if not
+            provided.
+        model: Specific model to use. Uses provider defaults if not provided.
+        api_key: API key. Uses environment variables if not provided.
+        temperature: LLM temperature for consistency (lower = more consistent).
+        cache_examples: Whether to cache generated few-shot examples.
+    """
+
+    INDIC_LANGUAGES: ClassVar[dict[str, dict[str, str]]] = {
         "hindi": {"native": "हिन्दी", "script": "devanagari", "iso": "hi"},
         "tamil": {"native": "தமிழ்", "script": "tamil", "iso": "ta"},
         "telugu": {"native": "తెలుగు", "script": "telugu", "iso": "te"},
@@ -34,7 +50,7 @@ class IndicLLMTransliterator:
     }
 
     # Default model preferences by provider
-    DEFAULT_MODELS = {
+    DEFAULT_MODELS: ClassVar[dict[str, str]] = {
         "openai": "gpt-5.4-mini",
         "anthropic": "claude-3-opus-20240229",
         "google": "gemini-pro",
@@ -51,18 +67,6 @@ class IndicLLMTransliterator:
         temperature: float = 0.3,
         cache_examples: bool = True,
     ):
-        """
-        Initialize the Indic LLM transliterator.
-
-        Args:
-            source_lang: Source language (e.g., 'hindi', 'tamil')
-            target_lang: Target language (e.g., 'english')
-            provider: LLM provider (openai, anthropic, etc.). Auto-detected if not provided.
-            model: Specific model to use. Uses provider defaults if not provided.
-            api_key: API key. Uses environment variables if not provided.
-            temperature: LLM temperature for consistency (lower = more consistent).
-            cache_examples: Whether to cache generated few-shot examples.
-        """
         self.source_lang = self._normalize_language(source_lang)
         self.target_lang = self._normalize_language(target_lang)
         self._validate_language_pair()
@@ -217,8 +221,7 @@ class IndicLLMTransliterator:
             logger.debug(f"Could not load pre-built examples: {e}")
 
     def generate_few_shot_examples(self, num_examples: int = 5) -> list[dict[str, str]]:
-        """
-        Generate few-shot transliteration examples for the language pair.
+        """Generate few-shot transliteration examples for the language pair.
 
         Args:
             num_examples: Number of examples to generate.
@@ -256,9 +259,7 @@ class IndicLLMTransliterator:
             )
 
             # Parse the response
-            examples = self._parse_examples_response(
-                response.choices[0].message.content
-            )
+            examples = self._parse_examples_response(_response_text(response))
 
             # Cache the examples
             if self.cache_examples:
@@ -366,8 +367,7 @@ Focus on accurate phonetic representation."""
         use_few_shot: bool = True,
         num_examples: int = 5,
     ) -> str:
-        """
-        Transliterate text from source language to target language.
+        """Transliterate text from source language to target language.
 
         Args:
             text: Text to transliterate.
@@ -403,7 +403,7 @@ Focus on accurate phonetic representation."""
                 max_tokens=len(text) * 3,  # Rough estimate for transliteration length
             )
 
-            result: str = response.choices[0].message.content.strip()
+            result: str = _response_text(response).strip()
 
             # Clean up the result (remove any explanation if present)
             if "\n" in result:
@@ -470,8 +470,7 @@ Important Rules:
         batch_size: int = 10,
         use_few_shot: bool = True,
     ) -> list[str]:
-        """
-        Transliterate multiple texts efficiently.
+        """Transliterate multiple texts efficiently.
 
         Args:
             texts: List of texts to transliterate.
@@ -502,7 +501,7 @@ Important Rules:
 
                 # Parse batch response
                 batch_results = self._parse_batch_response(
-                    response.choices[0].message.content, len(batch)
+                    _response_text(response), len(batch)
                 )
                 results.extend(batch_results)
 

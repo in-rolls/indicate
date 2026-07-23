@@ -101,7 +101,7 @@ class TestLLMModuleImport(unittest.TestCase):
             "GEMINI_API_KEY",
             "COHERE_API_KEY",
             "INDICATE_LLM_PROVIDER",
-            "INDICATE_LLM_MODEL"
+            "INDICATE_LLM_MODEL",
         ]
         original_values = {}
         for key in api_keys:

@@ -22,7 +22,8 @@ class TestCLI(unittest.TestCase):
         """Test that version command works."""
         result = self.runner.invoke(cli, ["--version"])
         self.assertEqual(result.exit_code, 0)
-        # Version should be present, but due to metadata caching may not be 0.4.0 immediately
+        # Version should be present, but due to metadata caching may not be
+        # 0.4.0 immediately
         self.assertTrue(any(c.isdigit() for c in result.output))
 
     def test_hindi2english_basic(self):

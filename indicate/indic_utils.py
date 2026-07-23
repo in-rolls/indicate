@@ -1,13 +1,10 @@
-"""
-Utilities for Indic language detection and validation.
-"""
+"""Utilities for Indic language detection and validation."""
 
 from __future__ import annotations
 
 
 def detect_indic_script(text: str) -> str | None:
-    """
-    Auto-detect Indic script from Unicode ranges.
+    """Auto-detect Indic script from Unicode ranges.
 
     Args:
         text: Text to analyze.
@@ -61,8 +58,7 @@ def detect_indic_script(text: str) -> str | None:
 
 
 def detect_language_from_script(text: str) -> str | None:
-    """
-    Detect the most likely language based on script and context.
+    """Detect the most likely language based on script and context.
 
     Args:
         text: Text to analyze.
@@ -94,8 +90,7 @@ def detect_language_from_script(text: str) -> str | None:
 
 
 def is_indic_script(script: str) -> bool:
-    """
-    Check if a script is an Indic script.
+    """Check if a script is an Indic script.
 
     Args:
         script: Script name.
@@ -123,8 +118,7 @@ def is_indic_script(script: str) -> bool:
 
 
 def validate_indic_language_pair(source: str, target: str) -> bool:
-    """
-    Validate that at least one language is Indic.
+    """Validate that at least one language is Indic.
 
     Args:
         source: Source language or script.
@@ -159,8 +153,7 @@ def validate_indic_language_pair(source: str, target: str) -> bool:
 
 
 def normalize_text_for_transliteration(text: str) -> str:
-    """
-    Normalize Indic text for better transliteration.
+    """Normalize Indic text for better transliteration.
 
     Args:
         text: Input text.
@@ -177,7 +170,7 @@ def normalize_text_for_transliteration(text: str) -> str:
         "॥": ".",  # Devanagari double danda
         "॰": "",  # Devanagari abbreviation sign
         "₹": "Rs.",  # Rupee symbol
-        "–": "-",  # En dash to hyphen
+        "–": "-",
         "—": "-",  # Em dash to hyphen
     }
 
@@ -188,8 +181,7 @@ def normalize_text_for_transliteration(text: str) -> str:
 
 
 def split_mixed_script_text(text: str) -> list[tuple[str, str]]:
-    """
-    Split text containing multiple scripts into segments.
+    """Split text containing multiple scripts into segments.
 
     Args:
         text: Text potentially containing multiple scripts.
@@ -253,15 +245,14 @@ def split_mixed_script_text(text: str) -> list[tuple[str, str]]:
 
     # Add the last segment (a non-empty segment means the loop set current_script)
     if current_segment.strip():
-        assert current_script is not None
+        assert current_script is not None  # noqa: S101 - loop invariant narrowing
         segments.append((current_segment.strip(), current_script))
 
     return segments
 
 
 def get_language_info(language: str) -> dict:
-    """
-    Get detailed information about a language.
+    """Get detailed information about a language.
 
     Args:
         language: Language name.

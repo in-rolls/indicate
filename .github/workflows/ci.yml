@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"  # weekly: surface ecosystem drift on quiet repos
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: gojiplus/py-canon/.github/workflows/reusable-ci.yml@v1
+    with:
+      wheel-import: indicate
+      coverage-floor: 0
+      python-versions: '["3.13", "3.14"]'  # repo floor is 3.13

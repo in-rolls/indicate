@@ -8,8 +8,8 @@ import torch
 from .decoder import Decoder
 from .encoder import Encoder
 
-START_TOKEN = "^"
-END_TOKEN = "$"
+START_TOKEN = "^"  # noqa: S105 - seq2seq framing token, not a secret
+END_TOKEN = "$"  # noqa: S105 - seq2seq framing token, not a secret
 
 # Decoding stops at the END token; this is the safety cap if it never comes.
 # Transliteration output length tracks input length, so the cap is input-relative

@@ -7,9 +7,9 @@ hindi2english = HindiToEnglish.transliterate
 punjabi2english = PunjabiToEnglish.transliterate
 
 __all__ = [
-    "hindi2english",
-    "punjabi2english",
     "IndicLLMTransliterator",
     "detect_indic_script",
     "detect_language_from_script",
+    "hindi2english",
+    "punjabi2english",
 ]

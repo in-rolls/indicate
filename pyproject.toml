@@ -1,10 +1,9 @@
 [build-system]
-requires = ["uv_build>=0.9.15,<0.12.0"]
-build-backend = "uv_build"
+requires = ["hatchling", "uv-dynamic-versioning"]
+build-backend = "hatchling.build"
 
 [project]
 name = "indicate"
-version = "0.7.0"
 description = "Transliterations to/from Indian languages"
 readme = "README.md"
 authors = [
@@ -32,6 +31,7 @@ dependencies = [
     "litellm>=1.0.0",  # For LLM-based transliteration
     "google-genai>=1.0",  # native Gemini batch provider (indicate.batch)
 ]
+dynamic = ["version"]
 
 [dependency-groups]
 docs = [
@@ -40,6 +40,7 @@ docs = [
     "sphinx-autodoc-typehints>=1.25",
     "sphinx-copybutton>=0.5",
     "myst-parser>=2.0",
+    "py-canon @ git+https://github.com/gojiplus/py-canon@v1",
 ]
 dev = [
     "pytest>=7.0",
@@ -91,56 +92,28 @@ wheel-exclude = ["**/saved_weights/**"]
 # Ruff configuration
 [tool.ruff]
 line-length = 88
-target-version = "py313"
-exclude = [
-    ".git",
-    "__pycache__",
-    "build",
-    "dist",
-    ".venv",
-    "docs",
-    ".eggs",
-    "notebooks",
-    "data",
-    "examples",
-]
+# Research artifacts in-repo are out of scope for package lint standards
+extend-exclude = ["data", "examples", "scripts", "notebooks", "training"]
+target-version = "py311"
 
 [tool.ruff.lint]
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-]
+allowed-confusables = ["ः", "–"]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "D", "S", "SIM", "T20", "PT", "RUF"]
 ignore = [
-    "E501",  # line too long (handled by formatter)
-    "B008",  # do not perform function calls in argument defaults
-    "C901",  # too complex
+    "D203",
+    "D213",
+    # Transitional (adoption 2026-07): missing docstrings in legacy code — burn down
+    "D1",
 ]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # imported but unused
-"tests/*" = ["S101"]  # use of assert
-"*.ipynb" = ["E402", "E722", "UP031", "B905", "F821", "F811", "W293", "F841"]  # ignore notebook linting issues
+"tests/**" = ["S101", "S108", "D", "PT"]  # PT: legacy unittest-style tests (transitional)
+"indicate/llm_indic.py" = ["E501"]  # long lines are prompt-template payload
+"docs/**" = ["D"]
 
-[tool.ruff.lint.isort]
-known-first-party = ["indicate"]
-
-# Black configuration
-[tool.black]
-line-length = 88
-target-version = ["py313"]
-
-# isort configuration
-[tool.isort]
-profile = "black"
-line_length = 88
-known-first-party = ["indicate"]
-
-# Pytest configuration
 [tool.pytest.ini_options]
 minversion = "7.0"
 testpaths = ["tests"]
@@ -155,33 +128,16 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
 # mypy configuration
-[tool.mypy]
-python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
-check_untyped_defs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-show_error_codes = true
+[tool.codespell]
+ignore-words-list = "te"
 
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = ["torch.*", "safetensors.*", "google.*"]
-ignore_missing_imports = true
-
-# pydoclint: keep docstrings in sync with signatures. We type in the signature,
-# so types are not duplicated in the docstring; __init__ may carry its own args.
 [tool.pydoclint]
 style = "google"
 arg-type-hints-in-docstring = false
 check-return-types = false
-allow-init-docstring = true
+check-class-attributes = false
+exclude = '\.venv|tests|docs|data|examples|scripts|notebooks|training'
 
-# Coverage configuration
 [tool.coverage.run]
 source = ["indicate"]
 branch = true
@@ -196,3 +152,17 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
 ]
+
+[tool.pyright]
+include = ["indicate"]
+typeCheckingMode = "standard"
+
+[tool.hatch.version]
+source = "uv-dynamic-versioning"
+
+[tool.hatch.build.targets.wheel]
+packages = ["indicate"]
+
+[tool.uv-dynamic-versioning]
+vcs = "git"
+style = "pep440"

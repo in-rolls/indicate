@@ -30,6 +30,7 @@ import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any, cast
 
 import litellm
 
@@ -175,8 +176,8 @@ def _content_to_text(content) -> str:
 def _parse_output_jsonl(content) -> dict[str, str]:
     """Map each request's ``custom_id`` to the model's text output.
 
-    Output lines follow the OpenAI batch schema:
-    ``{"custom_id", "response": {"body": {"choices": [{"message": {"content"}}]}}, "error"}``.
+    Output lines follow the OpenAI batch schema (``custom_id``,
+    ``response.body.choices[0].message.content``, ``error``).
     """
     results: dict[str, str] = {}
     for line in _content_to_text(content).splitlines():
@@ -257,7 +258,7 @@ def _parse_gemini_jsonl(content) -> dict[str, str]:
 
 
 def _write_jsonl(records: list[dict]) -> str:
-    tmp = tempfile.NamedTemporaryFile(
+    tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 - delete=False, path returned
         "w", suffix=".jsonl", delete=False, encoding="utf-8"
     )
     for record in records:
@@ -294,14 +295,21 @@ def _submit_openai_jobs(
         path = _write_jsonl(request_chunk)
         try:
             with open(path, "rb") as handle:
-                file_obj = litellm.create_file(
-                    file=handle, purpose="batch", custom_llm_provider=state.provider
+                # litellm types the sync variants as possibly-Coroutine
+                file_obj = cast(
+                    Any,
+                    litellm.create_file(
+                        file=handle, purpose="batch", custom_llm_provider=state.provider
+                    ),
                 )
-            batch = litellm.create_batch(
-                completion_window=completion_window,
-                endpoint=BATCH_ENDPOINT,
-                input_file_id=file_obj.id,
-                custom_llm_provider=state.provider,
+            batch = cast(
+                Any,
+                litellm.create_batch(
+                    completion_window=completion_window,
+                    endpoint=BATCH_ENDPOINT,
+                    input_file_id=file_obj.id,
+                    custom_llm_provider=state.provider,
+                ),
             )
         finally:
             os.unlink(path)
@@ -347,7 +355,11 @@ def _submit_gemini_jobs(
             uploaded = client.files.upload(
                 file=path, config=types.UploadFileConfig(mime_type="jsonl")
             )
+            if not uploaded.name:
+                raise RuntimeError("Gemini file upload returned no name")
             job = client.batches.create(model=gmodel, src=uploaded.name)
+            if not job.name:
+                raise RuntimeError("Gemini batch create returned no name")
         finally:
             os.unlink(path)
         chunk_map = {r["key"]: custom_id_to_tokens[r["key"]] for r in request_chunk}
@@ -364,7 +376,10 @@ def _submit_gemini_jobs(
 
 
 def _poll_job(job: BatchJob, provider: str) -> tuple[str, dict[str, str]]:
-    """Poll one job. Returns (status, by_custom_id); status in completed/running/failed."""
+    """Poll one job.
+
+    Returns (status, by_custom_id); status in completed/running/failed.
+    """
     if provider in _GEMINI_PROVIDERS:
         client = _gemini_client()  # keep a ref for the whole call (httpx lifecycle)
         info = client.batches.get(name=job.batch_id)
@@ -384,7 +399,7 @@ def _poll_job(job: BatchJob, provider: str) -> tuple[str, dict[str, str]]:
         return "running", {}
 
     retrieved = litellm.retrieve_batch(
-        batch_id=job.batch_id, custom_llm_provider=provider
+        batch_id=job.batch_id, custom_llm_provider=cast(Any, provider)
     )
     status = getattr(retrieved, "status", None)
     output_file_id = getattr(retrieved, "output_file_id", None)
@@ -535,7 +550,8 @@ def collect_transliteration_batches(
                 parsed = transliterator._parse_batch_response(text, len(group))
                 if len(raw_lines) != len(group) or any(not p for p in parsed):
                     logger.warning(
-                        "Batch %s group %s: %d output line(s) for %d tokens; requeueing",
+                        "Batch %s group %s: %d output line(s) for %d tokens; "
+                        "requeueing",
                         job.batch_id,
                         custom_id,
                         len(raw_lines),

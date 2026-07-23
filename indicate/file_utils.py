@@ -1,6 +1,4 @@
-"""
-Safe file handling utilities for transliteration operations.
-"""
+"""Safe file handling utilities for transliteration operations."""
 
 from __future__ import annotations
 
@@ -11,7 +9,7 @@ import tempfile
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from .logging import get_logger
 
@@ -24,7 +22,7 @@ class OutputFormat:
     TEXT = "text"
     JSON = "json"
 
-    VALID_FORMATS = [TEXT, JSON]
+    VALID_FORMATS: ClassVar[list[str]] = [TEXT, JSON]
 
 
 class TransliterationResult:
@@ -162,8 +160,7 @@ class BatchProgress:
 
 
 def validate_file_paths(input_path: Path | None, output_path: Path | None) -> None:
-    """
-    Validate input and output file paths for safety.
+    """Validate input and output file paths for safety.
 
     Args:
         input_path: Input file path.
@@ -206,8 +203,7 @@ def validate_file_paths(input_path: Path | None, output_path: Path | None) -> No
 
 
 def create_backup(file_path: Path) -> Path | None:
-    """
-    Create a backup of a file before overwriting.
+    """Create a backup of a file before overwriting.
 
     Args:
         file_path: File to backup.
@@ -238,8 +234,7 @@ def write_output_safely(
     target_lang: str,
     atomic: bool = True,
 ) -> None:
-    """
-    Write transliteration results to file safely.
+    """Write transliteration results to file safely.
 
     Args:
         results: List of transliteration results.
@@ -351,7 +346,8 @@ def _write_json_format(
             "failed_lines": len(failed_results),
             "format_version": "1.0",
             "encoding": "utf-8",
-            "description": "Indic language transliteration results from indicate package",
+            "description": "Indic language transliteration results "
+            "from indicate package",
         },
         "results": [result.to_dict() for result in results],
     }
@@ -361,8 +357,7 @@ def _write_json_format(
 
 
 def read_input_file(input_path: Path) -> list[str]:
-    """
-    Read input file safely, handling both text and JSON formats.
+    """Read input file safely, handling both text and JSON formats.
 
     Args:
         input_path: Path to input file.
@@ -405,8 +400,7 @@ def _read_text_input(input_path: Path) -> list[str]:
 
 
 def _read_json_input(input_path: Path) -> list[str]:
-    """
-    Read JSON input file and extract text to transliterate.
+    """Read JSON input file and extract text to transliterate.
 
     Supports both:
     1. Simple array: ["text1", "text2", "text3"]
@@ -450,8 +444,7 @@ def _read_json_input(input_path: Path) -> list[str]:
 
 
 def check_resume_possibility(output_path: Path) -> BatchProgress | None:
-    """
-    Check if a previous batch operation can be resumed.
+    """Check if a previous batch operation can be resumed.
 
     Args:
         output_path: Output file path.

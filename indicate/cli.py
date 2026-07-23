@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-"""
-Modern CLI for the indicate package using Click.
-"""
+"""Modern CLI for the indicate package using Click."""
 
 from __future__ import annotations
 
@@ -92,7 +90,6 @@ def hindi2english(
         quiet: Suppress progress output.
 
     Examples:
-
         # Transliterate text directly
         indicate hindi2english "राजशेखर चिंतालपति"
 
@@ -139,7 +136,8 @@ def punjabi2english(
 ) -> None:
     """Transliterate Punjabi (Gurmukhi) text to English.
 
-    TEXT: Punjabi text to transliterate. If not provided, will read from --input or stdin.
+    TEXT: Punjabi text to transliterate. If not provided, will read from
+    --input or stdin.
 
     Args:
         text: Punjabi (Gurmukhi) text to transliterate; omit to read from
@@ -150,7 +148,6 @@ def punjabi2english(
         quiet: Suppress progress output.
 
     Examples:
-
         # Transliterate text directly
         indicate punjabi2english "ਰਵਿ ਸ਼ਰਮਾ"
 
@@ -248,7 +245,8 @@ def _process_batch(
 @click.option(
     "--source",
     "-s",
-    help="Source language (e.g., hindi, tamil, telugu). Auto-detected if not specified.",
+    help="Source language (e.g., hindi, tamil, telugu). "
+    "Auto-detected if not specified.",
 )
 @click.option(
     "--target", "-t", default="english", help="Target language (default: english)"
@@ -277,7 +275,8 @@ def _process_batch(
 @click.option(
     "--provider",
     "-p",
-    help="LLM provider (openai, anthropic, google). Auto-detected from environment if not specified.",
+    help="LLM provider (openai, anthropic, google). "
+    "Auto-detected from environment if not specified.",
 )
 @click.option(
     "--model", "-m", help="Specific model to use (e.g., gpt-4, claude-3-opus)"
@@ -358,7 +357,6 @@ def llm(
         quiet: Suppress progress output.
 
     Examples:
-
         # Hindi to English (auto-detected)
         indicate llm "राजशेखर चिंतालपति"
 
@@ -397,7 +395,8 @@ def llm(
             if progress:
                 if not quiet:
                     click.echo(
-                        f"Resuming from {progress.processed_lines}/{progress.total_lines} lines",
+                        f"Resuming from {progress.processed_lines}"
+                        f"/{progress.total_lines} lines",
                         err=True,
                     )
                 _resume_batch_processing(
@@ -744,7 +743,8 @@ def _process_file_batch(
     if dry_run:
         non_empty_lines = [line for line in lines if line.strip()]
         click.echo(
-            f"Would process {len(non_empty_lines)} non-empty lines from {len(lines)} total lines"
+            f"Would process {len(non_empty_lines)} non-empty lines "
+            f"from {len(lines)} total lines"
         )
         click.echo(f"Source language: {source}")
         click.echo(f"Target language: {target}")
@@ -967,7 +967,8 @@ def _resume_batch_processing(
 
     if not quiet:
         click.echo(
-            f"Resume completed: {progress.successful_lines} successful, {progress.failed_lines} failed",
+            f"Resume completed: {progress.successful_lines} successful, "
+            f"{progress.failed_lines} failed",
             err=True,
         )
 

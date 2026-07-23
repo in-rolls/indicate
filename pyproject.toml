@@ -73,22 +73,6 @@ Repository = "https://github.com/in-rolls/indicate"
 [project.scripts]
 indicate = "indicate.cli:cli"
 
-[tool.uv.build-backend]
-module-root = ""
-source-exclude = [
-    "/.github",
-    "/.venv", 
-    "/docs",
-    "/tests",
-    "/notebooks",
-    "/data",
-    "/.gitignore",
-    "/.pre-commit-config.yaml",
-]
-# Model weights are hosted on HF and lazy-downloaded; keep them out of the wheel
-# (tiny tokenizer JSONs stay so the package ships its vocab).
-wheel-exclude = ["**/saved_weights/**"]
-
 # Ruff configuration
 [tool.ruff]
 line-length = 88
@@ -162,6 +146,11 @@ source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
 packages = ["indicate"]
+# Model weights are HF-hosted and lazy-downloaded; keep them out of the wheel
+exclude = ["**/saved_weights/**"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/.github", "/docs", "/tests", "/notebooks", "/data", "/training", "/examples", "**/saved_weights/**"]
 
 [tool.uv-dynamic-versioning]
 vcs = "git"

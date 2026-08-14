@@ -1,0 +1,93 @@
+name: e2e
+
+# Additive to ci.yml, which delegates to the py-canon reusable workflow. Three
+# things that workflow cannot check:
+#
+#   * that the package works with **no local artifacts** -- the configuration
+#     every user and every runner is actually in;
+#   * that the built **wheel** works, rather than the source tree (its wheel job
+#     runs pytest from the repo root, where `import indicate` resolves to
+#     ./indicate/, so the wheel is never really exercised);
+#   * that the model repo still contains everything the loader asks for.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  schedule:
+    # The HF contract can break without anyone touching this repo.
+    - cron: "17 6 * * 1"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: fresh clone, offline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
+      - name: Test with no artifacts and no network
+        env:
+          HF_HUB_OFFLINE: "1"
+          HF_HOME: ${{ runner.temp }}/hf-empty
+        # No weights, no lookup tables, no huggingface.co. Everything that does
+        # not need an artifact must still pass, and nothing may error.
+        run: uv run --frozen pytest tests --ignore=tests/gazetteer
+
+  artifacts:
+    name: with artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
+      - name: Cache model weights
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/hf
+          # Keyed by revision: a bump refetches, an ordinary run does not.
+          key: hf-${{ hashFiles('indicate/resources.py') }}
+      - name: Build the lookup tables from the committed corpora
+        run: |
+          uv run --frozen --group train python training/build_lookup.py --lang hindi
+          uv run --frozen --group train python training/build_lookup.py --lang punjabi
+      - name: Test, failing rather than skipping on a missing artifact
+        env:
+          HF_HOME: ${{ runner.temp }}/hf
+        run: uv run --frozen pytest tests --require-artifacts
+
+  wheel:
+    name: built wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # uv-dynamic-versioning reads git tags.
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
+      - name: Build, install and exercise the wheel
+        # `and not live`: a bare -m replaces the `-m "not live"` in addopts, so
+        # without it this job would start making network calls.
+        run: uv run --frozen pytest -m "e2e and not live"
+
+  live-hf:
+    name: hugging face contract
+    # Only where it is worth a network dependency: the release path and a weekly
+    # check. Never on an ordinary PR.
+    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          enable-cache: true
+      - name: Check the model repo has every file the loader requests
+        run: uv run --frozen pytest -m live

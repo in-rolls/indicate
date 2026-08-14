@@ -18,18 +18,18 @@ Seq2seq transliterator
    :undoc-members:
    :show-inheritance:
 
-Hindi model
------------
+Transliteration API
+-------------------
 
-.. automodule:: indicate.hindi2english
+.. automodule:: indicate.api
    :members:
    :undoc-members:
    :show-inheritance:
 
-Punjabi model
--------------
+Backends
+--------
 
-.. automodule:: indicate.punjabi2english
+.. automodule:: indicate.engine
    :members:
    :undoc-members:
    :show-inheritance:
@@ -104,4 +104,32 @@ Command-line interface
 .. automodule:: indicate.cli
    :members:
    :undoc-members:
+   :show-inheritance:
+
+Languages and pairs
+-------------------
+
+.. automodule:: indicate.languages
+   :members:
+   :show-inheritance:
+
+Lookup table
+------------
+
+.. automodule:: indicate.lookup
+   :members:
+   :show-inheritance:
+
+Key normalization
+-----------------
+
+.. automodule:: indicate.normalize
+   :members:
+   :show-inheritance:
+
+Data resolution
+---------------
+
+.. automodule:: indicate.resources
+   :members:
    :show-inheritance:

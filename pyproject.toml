@@ -60,6 +60,10 @@ train = [
     "pyarrow>=15",
     "matplotlib>=3.7",
     "datasets>=2.18",
+    # Mechanical Devanagari/Gurmukhi -> IAST, used by gazetteer/phonetic.py to
+    # tell a romanization from a translation. Build-time only; never imported by
+    # the installed package.
+    "indic-transliteration>=2.3",
 ]
 
 [project.urls]
@@ -67,7 +71,7 @@ Homepage = "https://github.com/in-rolls/indicate"
 Repository = "https://github.com/in-rolls/indicate"
 
 [project.scripts]
-indicate = "indicate.cli:cli"
+indicate = "indicate.cli:main"
 
 # Ruff configuration
 [tool.ruff]
@@ -93,6 +97,7 @@ convention = "google"
 "tests/**" = ["S101", "S108", "D", "PT"]  # PT: legacy unittest-style tests (transitional)
 "indicate/llm_indic.py" = ["E501"]  # long lines are prompt-template payload
 "docs/**" = ["D"]
+"gazetteer/**" = ["T201"]  # build scripts report progress on stdout by design
 
 [tool.pytest.ini_options]
 minversion = "7.0"
@@ -103,9 +108,17 @@ addopts = [
     "--strict-markers",
     "--cov=indicate",
     "--cov-report=term-missing",
+    # Never reach the network on a default run.
+    "-m",
+    "not live",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "slow: slow tests (deselect with '-m \"not slow\"')",
+    "live: reaches the network; deselected by default, run with '-m live'",
+    "e2e: builds and installs the wheel, or runs the console script",
+    "needs_lookup: requires a built lookup table (training/build_lookup.py)",
+    "needs_weights: requires model weights, locally or in the HF cache",
+    "gazetteer: exercises gazetteer/, which ships in neither wheel nor sdist",
 ]
 # mypy configuration
 [tool.codespell]
@@ -134,7 +147,7 @@ exclude_lines = [
 ]
 
 [tool.pyright]
-include = ["indicate"]
+include = ["indicate", "gazetteer"]
 typeCheckingMode = "standard"
 
 [tool.hatch.version]
@@ -142,11 +155,27 @@ source = "uv-dynamic-versioning"
 
 [tool.hatch.build.targets.wheel]
 packages = ["indicate"]
-# Model weights are HF-hosted and lazy-downloaded; keep them out of the wheel
-exclude = ["**/saved_weights/**"]
+# Neither of these may ship. Weights are HF-hosted and lazy-downloaded. Lookup
+# tables derive from data/hindi.csv.gz (which blends CC-BY-NC IIT Bombay pairs)
+# and data/punjabi.csv.gz (from the restricted roll deposit), so redistributing
+# them in an MIT wheel is a license problem, not a size one. Stated here rather
+# than left to .gitignore, which hatchling honours but which is one edit away
+# from silently including them. tests/e2e/test_wheel_contents.py asserts it.
+exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["/.github", "/docs", "/tests", "/notebooks", "/data", "/training", "/examples", "**/saved_weights/**"]
+exclude = [
+    "/.github",
+    "/docs",
+    "/tests",
+    "/notebooks",
+    "/data",
+    "/training",
+    "/gazetteer",
+    "/examples",
+    "**/saved_weights/**",
+    "**/lookup*.tsv.gz",
+]
 
 [tool.uv-dynamic-versioning]
 vcs = "git"

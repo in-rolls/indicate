@@ -2,6 +2,11 @@
 
 All provider calls are mocked with a stateful fake of LiteLLM's batch API, so these
 run with no network access and no API spend.
+
+The batching tests pass ``engine=("llm",)`` on purpose. Their fixtures are real
+Punjabi words, so with the table on nothing would ever be submitted and the tests
+would pass while exercising none of the batch machinery they exist to cover.
+:class:`TestLookupSeeding` covers the table path itself.
 """
 
 from __future__ import annotations
@@ -14,6 +19,8 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
+
+import pytest
 
 import indicate.batch as batch_mod
 from indicate.batch import (
@@ -115,6 +122,7 @@ class TestSubmit(BatchTestBase):
                 provider="openai",
                 group_size=10,
                 use_few_shot=False,
+                engine=("llm",),
             )
         # One batch, one group (group_size >= n), all three tokens mapped.
         self.assertTrue(batch_mod._state_path(self.ckpt).exists())
@@ -140,9 +148,68 @@ class TestSubmit(BatchTestBase):
                 provider="openai",
                 group_size=10,
                 use_few_shot=False,
+                engine=("llm",),
             )
         (group,) = state.jobs[0].custom_id_to_tokens.values()
         self.assertEqual(group, ["ਪੰਜਾਬ"])  # resolved token dropped
+
+
+@pytest.mark.needs_lookup
+class TestLookupSeeding(BatchTestBase):
+    """The table answers before anything is submitted."""
+
+    def test_known_tokens_are_never_submitted(self):
+        fake = FakeBatchAPI()
+        with patch.object(batch_mod, "litellm", fake):
+            state = submit_transliteration_batches(
+                ["ਸਿੰਘ", "ਕੌਰ", "ZZZQQ"],
+                "punjabi",
+                "english",
+                checkpoint_path=self.ckpt,
+                provider="openai",
+                group_size=10,
+                use_few_shot=False,
+            )
+        if not batch_mod._resolve_locally(
+            ["ਸਿੰਘ"], "punjabi", "english", ("lookup", "llm")
+        ):
+            self.skipTest("punjabi lookup table not built")
+        (group,) = state.jobs[0].custom_id_to_tokens.values()
+        self.assertEqual(group, ["ZZZQQ"])
+
+    def test_table_answers_land_in_the_checkpoint(self):
+        # They must be written, not merely skipped, or the caller loses them.
+        fake = FakeBatchAPI()
+        with patch.object(batch_mod, "litellm", fake):
+            submit_transliteration_batches(
+                ["ਸਿੰਘ", "ZZZQQ"],
+                "punjabi",
+                "english",
+                checkpoint_path=self.ckpt,
+                provider="openai",
+                use_few_shot=False,
+            )
+        resolved = batch_mod._load_resolved(self.ckpt)
+        if not resolved:
+            self.skipTest("punjabi lookup table not built")
+        self.assertEqual(resolved, {"ਸਿੰਘ": "singh"})
+
+    def test_a_language_with_no_table_reaches_no_network(self):
+        # Tamil ships no table; asking for one must not attempt a download.
+        with patch("indicate.resources.resolve_data") as resolve:
+            self.assertEqual(
+                batch_mod._resolve_locally(
+                    ["வணக்கம்"], "tamil", "english", ("lookup", "llm")
+                ),
+                {},
+            )
+        resolve.assert_not_called()
+
+    def test_a_non_english_target_uses_no_table(self):
+        self.assertEqual(
+            batch_mod._resolve_locally(["ਸਿੰਘ"], "punjabi", "tamil", ("lookup", "llm")),
+            {},
+        )
 
 
 class TestCollect(BatchTestBase):
@@ -158,6 +225,7 @@ class TestCollect(BatchTestBase):
                 provider="openai",
                 group_size=10,
                 use_few_shot=False,
+                engine=("llm",),
             )
             done, resolved = collect_transliteration_batches(self.ckpt)
             self.assertFalse(done)
@@ -185,6 +253,7 @@ class TestDriver(BatchTestBase):
                 provider="openai",
                 group_size=10,
                 use_few_shot=False,
+                engine=("llm",),
                 poll_interval=0,
             )
         self.assertEqual(
@@ -207,6 +276,7 @@ class TestDriver(BatchTestBase):
                 provider="openai",
                 group_size=2,
                 use_few_shot=False,
+                engine=("llm",),
                 poll_interval=0,
             )
         self.assertEqual(resolved, {"ਰਾਜ": "xlit-ਰਾਜ", "ਪੰਜਾਬ": "xlit-ਪੰਜਾਬ"})
@@ -225,6 +295,7 @@ class TestDriver(BatchTestBase):
                 provider="openai",
                 group_size=10,
                 use_few_shot=False,
+                engine=("llm",),
             )
             batches_after_submit = len(fake.batches)
             # Driver should resume the in-flight batch, not submit a new one.
@@ -236,6 +307,7 @@ class TestDriver(BatchTestBase):
                 provider="openai",
                 group_size=10,
                 use_few_shot=False,
+                engine=("llm",),
                 poll_interval=0,
             )
         self.assertEqual(len(fake.batches), batches_after_submit)  # no new submit

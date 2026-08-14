@@ -187,17 +187,17 @@ def cmd_compare(args: argparse.Namespace) -> None:
         }
 
     if args.model and args.model != "none":
-        if args.model == "hindi":
-            from indicate.hindi2english import HindiToEnglish as model_cls
-        else:
-            from indicate.punjabi2english import PunjabiToEnglish as model_cls
-
-        model_cls.BEAM_WIDTH = args.beam
+        import indicate
         from tqdm import tqdm
 
         preds = {}
         for native in tqdm(natives, desc=f"indicate:{args.model}"):
-            preds[native] = model_cls.transliterate(native).lower()
+            # engine=("model",) so indicate competes as a model, not a table.
+            preds[native] = str(
+                indicate.transliterate(
+                    native, source=args.model, engine=("model",), beam=args.beam
+                )
+            ).lower()
         contestants[f"indicate:{args.model}(beam={args.beam})"] = preds
 
     print()

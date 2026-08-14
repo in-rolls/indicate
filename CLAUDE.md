@@ -10,9 +10,16 @@ Indicate is a Python package for transliterating Indic text to English using PyT
 
 ### Testing
 ```bash
-python -m unittest tests.test_010_hindi_translate
-python -m unittest discover tests/
+uv run pytest                          # the whole suite
+uv run pytest tests/test_engine.py     # one file
+uv run pytest --require-artifacts      # fail, don't skip, on a missing artifact
+uv run pytest -m "e2e and not live"    # build the wheel and exercise it
 ```
+
+Weights and lookup tables are gitignored, so a fresh clone skips what needs
+them and prints the build command in the terminal summary. `--require-artifacts`
+turns those skips into failures; CI runs one leg that way. Do not use
+`python -m unittest` — it collects roughly half the suite and errors.
 
 ### Build and Installation
 ```bash
@@ -24,27 +31,27 @@ pip install -e .  # Install in development mode (alternative)
 ### CLI Usage
 ```bash
 # Modern Click-based CLI
-indicate hindi2english "राजशेखर चिंतालपति"
-indicate hindi2english --input file.txt --output result.txt
+indicate transliterate "राजशेखर चिंतालपति"
+indicate transliterate --input file.txt --output result.txt --engine lookup,model
+indicate languages
 indicate info
 ```
 
 ### Documentation (Sphinx)
 ```bash
-cd docs/
-make html         # Build HTML documentation
-make clean        # Clean build artifacts
+cd docs/ && uv run --group docs sphinx-build -W -b html . _build/html
 ```
 
 ## Architecture
 
 ### Core Components
 
-1. **Seq2SeqTransliterator** (`indicate/transliterator.py`) - Base lazy-loaded singleton holding the load + greedy `transliterate()` logic, parameterized by class attrs (vocab/weights paths, max lengths)
-2. **HindiToEnglish** (`indicate/hindi2english.py`) / **PunjabiToEnglish** (`indicate/punjabi2english.py`) - Thin subclasses pointing at each language's tokenizers + safetensors
-3. **Encoder** (`indicate/encoder.py`) - `nn.Module` LSTM encoder
-4. **Decoder** (`indicate/decoder.py`) - `nn.Module` LSTM decoder with Luong (dot-product) attention
-5. **Utils** (`indicate/utils.py`) - Tokenizer loading (`load_tokenizer`) and greedy decoding (`translate`)
+1. **Seq2SeqModel** (`indicate/transliterator.py`) - one instance per language pair, built by `model_for(pair)` and cached in `_MODELS`; holds the vocab/weights paths and max lengths as instance state. torch is imported inside `load()`, not at module scope, so a run that never decodes never pays for it. `clear_models()` drops the cache.
+2. **Pair registry** (`indicate/languages.py`) - languages, aliases, scripts, and the `(source, target)` pairs a local model exists for. Replaces the old class-per-language modules.
+3. **Backends** (`indicate/engine.py`) - `lookup` / `model` / `llm` behind a `Backend` protocol, folded in order by `resolve_words`; each returns a candidate list per word or `None` to decline.
+4. **Encoder** (`indicate/encoder.py`) - `nn.Module` LSTM encoder
+5. **Decoder** (`indicate/decoder.py`) - `nn.Module` LSTM decoder with Luong (dot-product) attention
+6. **Utils** (`indicate/utils.py`) - Tokenizer loading (`load_tokenizer`) and greedy decoding (`translate`)
 
 ### Model Architecture
 - Encoder-decoder with Luong attention mechanism
@@ -64,14 +71,15 @@ make clean        # Clean build artifacts
 - Decoding is hard-bounded by an input-adaptive step cap (no wall-clock timeout)
 
 ### Key Entry Points
-- CLI: `indicate` command (Click group) with `hindi2english` / `punjabi2english` subcommands
-- API: `indicate.hindi2english(text)` and `indicate.punjabi2english(text)` functions
-- Main module: `indicate/__init__.py` exposes both transliteration functions
+- CLI: `indicate transliterate` (plus `languages`, `info`); `--from`/`--to`/`--engine`
+- API: `indicate.transliterate(text, source=..., engine=[...])` and `transliterate_batch`
+- Backends: `indicate/engine.py` (`lookup`, `model`, `llm`), chained in order; first to answer wins
 
 ## Dependencies
 - Python 3.13+ (modern Python with enhanced type hints)
 - Click 8.0+ (modern CLI framework)
 - PyTorch 2.6+ (core ML framework)
 - safetensors 0.4+ (model weight serialization)
-- func-timeout 4.3.0+ (prevents hanging translations)
+- huggingface-hub 0.23+ (lazy weight download at first use)
+- litellm 1.0+ (the `llm` backend; imported lazily, it costs ~1.3s)
 - tqdm 4.60.0+ (progress bars)

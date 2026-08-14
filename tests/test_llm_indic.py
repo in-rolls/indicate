@@ -7,6 +7,8 @@ import os
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
+import pytest
+
 from indicate.indic_utils import (
     detect_indic_script,
     detect_language_from_script,
@@ -373,84 +375,70 @@ target: Bharat
 
 
 class TestCLIIntegration(unittest.TestCase):
-    """Test CLI integration for LLM features."""
+    """The LLM is reached through ``transliterate --engine llm``.
 
-    @patch("indicate.cli.IndicLLMTransliterator")
-    @patch("indicate.cli.click.echo")
-    def test_llm_command_basic(self, mock_echo, mock_trans_class):
-        """Test basic LLM CLI command."""
+    There is no longer a separate ``llm`` command: the backend is an argument,
+    which is what lets the table intercept it with ``--engine lookup,llm``.
+    """
+
+    @patch("indicate.llm_indic.IndicLLMTransliterator")
+    def test_the_llm_backend_is_reached_through_the_engine_flag(self, mock_class):
         from click.testing import CliRunner
 
-        from indicate.cli import llm
+        from indicate.cli import cli
 
-        # Mock transliterator
-        mock_trans = MagicMock()
-        mock_trans.transliterate.return_value = "Namaste"
-        mock_trans_class.return_value = mock_trans
+        client = MagicMock()
+        client.transliterate_batch.return_value = ["namaste"]
+        mock_class.return_value = client
 
         runner = CliRunner()
-        with runner.isolated_filesystem():
-            runner.invoke(llm, ["नमस्ते", "--source", "hindi"])
+        result = runner.invoke(
+            cli, ["transliterate", "नमस्ते", "--from", "hindi", "--engine", "llm"]
+        )
 
-            # Check that transliterator was created with correct params
-            mock_trans_class.assert_called_once()
-            call_args = mock_trans_class.call_args[1]
-            self.assertEqual(call_args["source_lang"], "hindi")
-            self.assertEqual(call_args["target_lang"], "english")
+        self.assertEqual(result.exit_code, 0, result.output)
+        mock_class.assert_called_once()
+        # The backend passes the pair positionally, from the registry.
+        self.assertEqual(mock_class.call_args[0][:2], ("hindi", "english"))
+        client.transliterate_batch.assert_called_once()
+        self.assertEqual(client.transliterate_batch.call_args[0][0], ["नमस्ते"])
+        self.assertIn("namaste", result.output)
 
-            # Check transliteration was called
-            mock_trans.transliterate.assert_called_with("नमस्ते", use_few_shot=True)
-
-    @patch("indicate.cli.detect_language_from_script")
-    @patch("indicate.cli.IndicLLMTransliterator")
-    def test_llm_command_auto_detect(self, mock_trans_class, mock_detect):
-        """Test LLM command with auto-detection."""
+    @patch("indicate.llm_indic.IndicLLMTransliterator")
+    def test_the_language_is_auto_detected_for_the_llm_too(self, mock_class):
         from click.testing import CliRunner
 
-        from indicate.cli import llm
+        from indicate.cli import cli
 
-        # Mock detection
-        mock_detect.return_value = "hindi"
-
-        # Mock transliterator
-        mock_trans = MagicMock()
-        mock_trans.transliterate.return_value = "Namaste"
-        mock_trans_class.return_value = mock_trans
+        client = MagicMock()
+        client.transliterate_batch.return_value = ["namaste"]
+        mock_class.return_value = client
 
         runner = CliRunner()
-        runner.invoke(llm, ["नमस्ते"])
+        result = runner.invoke(cli, ["transliterate", "नमस्ते", "--engine", "llm"])
 
-        # Check that detection was called
-        mock_detect.assert_called_with("नमस्ते")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertEqual(mock_class.call_args[0][:2], ("hindi", "english"))
 
-        # Check that transliterator was created with detected language
-        call_args = mock_trans_class.call_args[1]
-        self.assertEqual(call_args["source_lang"], "hindi")
-
-    @patch("indicate.cli.IndicLLMTransliterator")
-    def test_llm_command_show_examples(self, mock_trans_class):
-        """Test showing examples."""
+    @patch("indicate.llm_indic.IndicLLMTransliterator")
+    @pytest.mark.needs_weights
+    def test_a_failing_provider_declines_instead_of_raising(self, mock_class):
+        # Declining is what lets ("lookup", "llm", "model") degrade to local
+        # decoding rather than losing the word.
         from click.testing import CliRunner
 
-        from indicate.cli import llm
+        from indicate.cli import cli
 
-        # Mock transliterator
-        mock_trans = MagicMock()
-        mock_trans.generate_few_shot_examples.return_value = [
-            {"source": "नमस्ते", "target": "Namaste"},
-            {"source": "राज", "target": "Raj"},
-        ]
-        mock_trans_class.return_value = mock_trans
+        client = MagicMock()
+        client.transliterate_batch.side_effect = RuntimeError("no api key")
+        mock_class.return_value = client
 
         runner = CliRunner()
-        result = runner.invoke(llm, ["--show-examples", "--source", "hindi"])
-
-        # Check that examples were generated
-        mock_trans.generate_few_shot_examples.assert_called_once()
-
-        # Check output contains examples
-        self.assertIn("नमस्ते → Namaste", result.output)
-        self.assertIn("राज → Raj", result.output)
+        result = runner.invoke(
+            cli, ["transliterate", "नमस्ते", "--from", "hindi", "--engine", "llm,model"]
+        )
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn("namaste", result.output)
 
 
 if __name__ == "__main__":

@@ -26,8 +26,7 @@ from tqdm import tqdm
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from indicate.hindi2english import HindiToEnglish  # noqa: E402
-from indicate.punjabi2english import PunjabiToEnglish  # noqa: E402
+import indicate  # noqa: E402
 from indicate.rerank import Reranker  # noqa: E402
 from training.metrics import (  # noqa: E402
     format_summary,
@@ -41,12 +40,12 @@ DAKSHINA_DIR = REPO_ROOT / "data" / "dakshina"
 DATA_DIR = REPO_ROOT / "data"
 MODELS = {
     "hindi": (
-        HindiToEnglish,
+        "hindi",
         DAKSHINA_DIR / "hi.translit.sampled.test.tsv",
         DATA_DIR / "hindi.csv.gz",
     ),
     "punjabi": (
-        PunjabiToEnglish,
+        "punjabi",
         DAKSHINA_DIR / "pa.translit.sampled.test.tsv",
         DATA_DIR / "punjabi.csv.gz",
     ),
@@ -88,11 +87,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    transliterator, default_test, train_csv = MODELS[args.model]
-    transliterator.BEAM_WIDTH = max(args.beam, 5) if args.rerank else args.beam
+    lang, default_test, train_csv = MODELS[args.model]
+    beam = max(args.beam, 5) if args.rerank else args.beam
+    reranker = None
     if args.rerank:
         targets = [eng for _, eng in load_pairs(train_csv)]
-        transliterator.RERANKER = Reranker(targets, alpha=args.alpha)
+        reranker = Reranker(targets, alpha=args.alpha)
     test_file = args.test_file or default_test
 
     refs = load_references(test_file)
@@ -101,13 +101,17 @@ def main() -> None:
         words = words[: args.limit]
     print(
         f"[{args.model}] evaluating {len(words)} unique words from {test_file} "
-        f"(beam={transliterator.BEAM_WIDTH}, rerank={args.rerank})"
+        f"(beam={beam}, rerank={args.rerank})"
     )
 
     dists: list[int] = []
     ref_lens: list[int] = []
     for word in tqdm(words, desc="eval"):
-        pred = transliterator.transliterate(word)
+        # engine=("model",): the table is built from the training corpus, so
+        # leaving it in would score memorization rather than the model.
+        pred = indicate.transliterate(
+            word, source=lang, engine=("model",), beam=beam, reranker=reranker
+        )
         dist, ref_len = score_word(pred, refs[word])
         dists.append(dist)
         ref_lens.append(ref_len)

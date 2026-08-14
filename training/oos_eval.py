@@ -27,8 +27,7 @@ from tqdm import tqdm
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from indicate.hindi2english import HindiToEnglish  # noqa: E402
-from indicate.punjabi2english import PunjabiToEnglish  # noqa: E402
+import indicate  # noqa: E402
 from indicate.rerank import Reranker  # noqa: E402
 from training.metrics import (  # noqa: E402
     format_summary,
@@ -45,7 +44,7 @@ from training.train import (  # noqa: E402
 DATA_DIR = REPO_ROOT / "indicate" / "data"
 MODELS = {
     "hindi": {
-        "cls": HindiToEnglish,
+        "lang": "hindi",
         "data": REPO_ROOT / "data" / "hindi.csv.gz",
         "input_vocab": DATA_DIR / "hindi_to_english" / "hindi_tokens.json",
         "target_vocab": DATA_DIR / "hindi_to_english" / "english_tokens.json",
@@ -53,7 +52,7 @@ MODELS = {
         "max_output": 173,
     },
     "punjabi": {
-        "cls": PunjabiToEnglish,
+        "lang": "punjabi",
         "data": REPO_ROOT / "data" / "punjabi.csv.gz",
         "input_vocab": DATA_DIR / "punjabi_to_english" / "punjabi_tokens.json",
         "target_vocab": DATA_DIR / "punjabi_to_english" / "english_tokens.json",
@@ -106,11 +105,11 @@ def main() -> None:
     args = parser.parse_args()
 
     cfg = MODELS[args.model]
-    transliterator = cfg["cls"]
-    transliterator.BEAM_WIDTH = max(args.beam, 5) if args.rerank else args.beam
+    beam = max(args.beam, 5) if args.rerank else args.beam
+    reranker = None
     if args.rerank:
         targets = [eng for _, eng in load_pairs(cfg["data"])]
-        transliterator.RERANKER = Reranker(targets, alpha=args.alpha)
+        reranker = Reranker(targets, alpha=args.alpha)
 
     val_pairs = reproduce_val_pairs(cfg, args.seed, args.val_frac)
     # Group to multi-reference: a source counts correct if it matches any reference.
@@ -133,7 +132,11 @@ def main() -> None:
     ref_lens: list[int] = []
     misses: list[tuple[str, str, str]] = []
     for source in tqdm(scored, desc="oos-eval"):
-        pred = transliterator.transliterate(source)
+        # engine=("model",): this measures the model on held-out data; a hit
+        # would return the training label and inflate the score.
+        pred = indicate.transliterate(
+            source, source=cfg["lang"], engine=("model",), beam=beam, reranker=reranker
+        )
         dist, ref_len = score_word(pred, refs[source])
         dists.append(dist)
         ref_lens.append(ref_len)

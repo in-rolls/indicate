@@ -1,30 +1,31 @@
 name: e2e
 
-# Additive to ci.yml, which delegates to the py-canon reusable workflow. Three
+# Additive to ci.yml, which delegates to the py-canon reusable workflow. Two
 # things that workflow cannot check:
 #
 #   * that the package works with **no local artifacts** -- the configuration
 #     every user and every runner is actually in;
 #   * that the built **wheel** works, rather than the source tree (its wheel job
 #     runs pytest from the repo root, where `import indicate` resolves to
-#     ./indicate/, so the wheel is never really exercised);
-#   * that the model repo still contains everything the loader asks for.
+#     ./indicate/, so the wheel is never really exercised).
+#
+# The third -- that the model repo still holds what the loader asks for -- lives
+# in hf-contract.yml. It needs a tag trigger, and zizmor rightly treats a
+# tag-triggered workflow as a publishing one, where a warm dependency cache is a
+# poisoning vector. Splitting keeps that posture off the pull-request path.
 
 on:
   push:
     branches: [master]
-    # Tags too, or the `live-hf` job below -- guarded on refs/tags/ -- is
-    # unreachable, and the Hugging Face contract check never runs on the one
-    # event it exists for. It had never run.
-    tags: ["v*"]
   pull_request:
-  schedule:
-    # The HF contract can break without anyone touching this repo.
-    - cron: "17 6 * * 1"
 
 concurrency:
   group: e2e-${{ github.ref }}
   cancel-in-progress: true
+
+# Least privilege: these jobs only ever read the tree.
+permissions:
+  contents: read
 
 jobs:
   contract:
@@ -32,6 +33,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes; leaving the token in .git/config only widens
+          # what a compromised step could exfiltrate.
+          persist-credentials: false
       - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           enable-cache: true
@@ -48,6 +53,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           enable-cache: true
@@ -74,6 +81,7 @@ jobs:
         with:
           # uv-dynamic-versioning reads git tags.
           fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
         with:
           enable-cache: true
@@ -81,17 +89,3 @@ jobs:
         # `and not live`: a bare -m replaces the `-m "not live"` in addopts, so
         # without it this job would start making network calls.
         run: uv run --frozen pytest -m "e2e and not live"
-
-  live-hf:
-    name: hugging face contract
-    # Only where it is worth a network dependency: the release path and a weekly
-    # check. Never on an ordinary PR.
-    if: github.event_name == 'schedule' || startsWith(github.ref, 'refs/tags/')
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
-        with:
-          enable-cache: true
-      - name: Check the model repo has every file the loader requests
-        run: uv run --frozen pytest -m live

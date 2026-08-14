@@ -190,6 +190,17 @@ def harvest(
             if len(bindings) < page_size:
                 break
             time.sleep(1)  # be polite to a shared public endpoint
+        else:
+            # Every one of max_pages came back full, so there is certainly more
+            # behind the cap. Falling out of the loop here and writing anyway
+            # would overwrite a complete TSV with a silently truncated one and
+            # exit 0 -- the same failure as the timeout case above, reached by
+            # running out of pages instead of by an error.
+            raise RuntimeError(
+                f"{entity} filled all {max_pages} pages of {page_size}; "
+                f"there is more data behind the cap. Raise --max-pages rather "
+                f"than publishing a truncated harvest."
+            )
     return aggregate(rows)
 
 

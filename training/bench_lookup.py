@@ -32,7 +32,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from indicate.lookup import Lookup, clear_cache, lookup_key  # noqa: E402
+# split_edges, not lookup_key: the lru_cache lives on the former, and
+# lookup_key is now a thin wrapper with no cache_clear of its own.
+from indicate.lookup import Lookup, clear_cache, split_edges  # noqa: E402
 
 LANG_SUBDIR = {"punjabi": "punjabi_to_english", "hindi": "hindi_to_english"}
 ROLL_PARQUET = REPO_ROOT / "data" / "punjab_transliteration_subset.parquet"
@@ -116,7 +118,7 @@ def measure_throughput(subdir: str, draws: int = 300_000) -> dict:
 
     # Each key is looked up once, and the cache is cleared first so no earlier
     # pass can have warmed it.
-    lookup_key.cache_clear()
+    split_edges.cache_clear()
     start = time.perf_counter()
     for word in keys:
         table.get(word)

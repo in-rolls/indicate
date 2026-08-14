@@ -119,5 +119,64 @@ class TestAPI(unittest.TestCase):
         self.assertIsInstance(result3, str)
 
 
+class StubLLM:
+    """The whole interface ``LLMBackend`` uses: one batch method.
+
+    Injected via ``transliterate(llm=...)`` rather than patched, so the test
+    exercises the real chain construction and only replaces the network call.
+    """
+
+    def __init__(self, answers: dict[str, str]) -> None:
+        self.answers = answers
+        self.seen: list[str] = []
+
+    def transliterate_batch(self, words, batch_size=None):
+        """Answer from the canned mapping, recording what was asked.
+
+        Args:
+            words: Words to transliterate.
+            batch_size: Ignored; present because the backend passes it.
+
+        Returns:
+            One answer per word, in order.
+        """
+        self.seen.extend(words)
+        return [self.answers.get(word, "") for word in words]
+
+
+class TestReverseDirection(unittest.TestCase):
+    """English to Indic, which the README advertises and nothing checked.
+
+    ``supported()`` reports these directions as available through the ``llm``
+    backend, and the README's feature list claims bidirectionality, but a grep
+    for ``source="english"`` across the suite returned nothing before this.
+    Only the ``llm`` backend can serve them -- there is no local model in that
+    direction -- so the assertion is that the pair resolves, an ``llm`` backend
+    is built for it, and its answer comes back.
+    """
+
+    def test_english_to_hindi_resolves_and_uses_the_llm_backend(self):
+        stub = StubLLM({"hello": "हैलो", "world": "वर्ल्ड"})
+        out = indicate.transliterate(
+            "hello world", source="english", target="hindi", engine=["llm"], llm=stub
+        )
+        self.assertEqual(out, "हैलो वर्ल्ड")
+        self.assertEqual(stub.seen, ["hello", "world"])
+
+    def test_the_reverse_direction_is_advertised_as_supported(self):
+        # supported() and the runtime must agree: advertising a direction that
+        # then raises is worse than not advertising it.
+        self.assertIn(("english", "hindi"), indicate.supported())
+        self.assertEqual(indicate.supported()[("english", "hindi")], ("llm",))
+
+    def test_a_local_engine_is_refused_for_the_reverse_direction(self):
+        # There is no English->Hindi local model, so asking for one must name
+        # what would work rather than silently falling through to a paid call.
+        with pytest.raises(indicate.UnsupportedPairError, match="llm"):
+            indicate.transliterate(
+                "hello", source="english", target="hindi", engine=["lookup", "model"]
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

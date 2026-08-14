@@ -36,9 +36,25 @@ from .conftest import venv_python
 PA = PAIRS[("punjabi", "english")]
 SINGH = "ਸਿੰਘ"
 
+#: One word per local pair, and what its table answers. Both languages, because
+#: the workflow is documented for both and testing one proves nothing about the
+#: other -- they are separate tables, separate subdirectories, separate builds.
+WORDS = {
+    ("punjabi", "english"): (SINGH, "singh"),
+    ("hindi", "english"): ("सिंह", "singh"),
+}
+
+
+@pytest.fixture(params=sorted(WORDS), ids=lambda key: key[0])
+def language(request) -> tuple:
+    """Each local pair in turn, as ``(pair, word, expected)``."""
+    pair = PAIRS[request.param]
+    word, expected = WORDS[request.param]
+    return pair, word, expected
+
 
 @pytest.fixture
-def real_table(tmp_path: Path) -> Path:
+def real_table(tmp_path: Path, language: tuple) -> Path:
     """A data directory holding a genuine built table, laid out as expected.
 
     Uses the developer's table rather than a synthetic one so the layout under
@@ -46,18 +62,21 @@ def real_table(tmp_path: Path) -> Path:
 
     Args:
         tmp_path: pytest's per-test temporary directory.
+        language: The pair under test.
 
     Returns:
         A directory to point ``INDICATE_DATA_DIR`` at.
     """
-    built = local_data_path(PA.subdir, LOOKUP_FILE)
+    pair = language[0]
+    built = local_data_path(pair.subdir, LOOKUP_FILE)
     if not os.path.exists(built):
         pytest.skip(
-            f"no built table at {built}; run training/build_lookup.py --lang punjabi"
+            f"no built table at {built}; "
+            f"run training/build_lookup.py --lang {pair.source}"
         )
     root = tmp_path / "indicate-data"
-    (root / PA.subdir).mkdir(parents=True)
-    shutil.copy2(built, root / PA.subdir / LOOKUP_FILE)
+    (root / pair.subdir).mkdir(parents=True)
+    shutil.copy2(built, root / pair.subdir / LOOKUP_FILE)
     return root
 
 
@@ -79,15 +98,18 @@ def test_the_installed_wheel_has_no_table_and_says_so(wheel_venv: Path, clean_en
 
 
 def test_a_user_built_table_is_found_through_the_env_var(
-    wheel_venv: Path, clean_env, real_table: Path
+    wheel_venv: Path, clean_env, real_table: Path, language: tuple
 ):
     # The workflow the README documents, end to end: pip install, build a
-    # table elsewhere, point the variable at it, get table answers.
+    # table elsewhere, point the variable at it, get table answers. Runs for
+    # every local pair -- they are separate tables in separate directories, so
+    # Punjabi working says nothing about Hindi.
+    pair, word, expected = language
     env = {**clean_env, "INDICATE_DATA_DIR": str(real_table)}
     proc = run_python(
         _script(
             "import indicate\n"
-            f"out = indicate.transliterate({SINGH!r}, source='punjabi', "
+            f"out = indicate.transliterate({word!r}, source={pair.source!r}, "
             "engine=['lookup'])\n"
             "print(out, 'torch' in sys.modules)\n"
         ),
@@ -96,13 +118,13 @@ def test_a_user_built_table_is_found_through_the_env_var(
         env=env,
     )
     answer, torch_imported = proc.stdout.split()
-    assert answer == "singh"
+    assert answer == expected
     # The reason to have a table at all: a hit never reaches the decoder.
     assert torch_imported == "False"
 
 
 def test_languages_reports_the_backend_ready_once_it_is_pointed_at_one(
-    wheel_venv: Path, clean_env, real_table: Path
+    wheel_venv: Path, clean_env, real_table: Path, language: tuple
 ):
     # `indicate languages` is what a user runs to find out whether the setup
     # worked, so it has to change its answer.
@@ -124,12 +146,14 @@ def test_languages_reports_the_backend_ready_once_it_is_pointed_at_one(
         check=False,
     )
 
+    source = language[0].source
+
     def lookup_row(out: str) -> str:
-        # Only Punjabi: the fixture supplies one table, so Hindi must stay
-        # unavailable. Asserting over every row would demand a table this test
-        # never provided.
+        # Only the pair under test: the fixture supplies exactly one table, so
+        # the other direction must stay unavailable. Asserting over every row
+        # would demand a table this test never provided.
         rows = [
-            ln for ln in out.splitlines() if ln.startswith("punjabi") and "lookup" in ln
+            ln for ln in out.splitlines() if ln.startswith(source) and "lookup" in ln
         ]
         assert len(rows) == 1, out
         return rows[0]

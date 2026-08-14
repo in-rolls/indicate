@@ -10,6 +10,19 @@ permissions:
 jobs:
   release:
     uses: gojiplus/py-canon/.github/workflows/reusable-release.yml@v1
+    with:
+      # py-canon defaults this to '3.12'. This project is >=3.13, so the
+      # default cannot resolve an interpreter and the `test` job dies with
+      # "requested interpreter resolved to Python 3.12.3" -- taking build,
+      # publish and github-release down with it. That is why v0.8.0 shipped to
+      # PyPI with no GitHub Release: the failure is a missing release, not an
+      # obvious version error.
+      test-python-version: '3.13'
+      # publish-pypi stays false, deliberately. PyPI trusted publishing cannot
+      # run through a reusable workflow -- the OIDC claim names py-canon's file
+      # rather than ours -- so the publish job lives in python-publish.yml,
+      # which is the filename the trusted publisher on pypi.org is pinned to.
+      # The two workflows are a division of labour, not duplication.
     permissions:
       contents: write
       id-token: write

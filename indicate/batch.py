@@ -801,6 +801,25 @@ def transliterate_tokens_batched(
                 return resolved, False
             time.sleep(poll_interval)
 
+    def _resolve_tail(tokens: list[str]) -> dict[str, str]:
+        """Run the backends that sit *after* ``llm``, and record what they answer.
+
+        ``_resolve_locally`` only runs the prefix before ``llm``, so a chain like
+        ``("lookup", "llm", "model")`` never reached ``model`` at all: the words
+        the provider missed went straight back to the provider. Free backends
+        the caller explicitly asked for must be tried before anything is paid
+        for a second time.
+        """
+        tail = tuple(itertools.dropwhile(lambda name: name != "llm", engine))[1:]
+        if not tokens or not tail:
+            return {}
+        # The trailing "llm" is a sentinel, never run: _resolve_locally executes
+        # the prefix before it, and here that prefix is exactly the tail.
+        answered = _resolve_locally(tokens, source_lang, target_lang, (*tail, "llm"))
+        if answered:
+            _append_resolved(checkpoint_path, answered)
+        return answered
+
     if _load_state(checkpoint_path) is None:
         submit_transliteration_batches(
             unique_tokens,
@@ -817,6 +836,20 @@ def transliterate_tokens_batched(
             max_requests_per_batch=max_requests_per_batch,
             engine=engine,
         )
+    else:
+        # Resuming onto an in-flight batch. Tokens added on this call were never
+        # offered to the local prefix, because that runs inside
+        # submit_transliteration_batches, which is skipped here -- so they
+        # bypassed the free table and went straight to the paid requeue below.
+        already = _load_resolved(checkpoint_path)
+        fresh = [token for token in unique_tokens if token not in already]
+        local = _resolve_locally(fresh, source_lang, target_lang, engine)
+        if local:
+            _append_resolved(checkpoint_path, local)
+            logger.info(
+                "Resumed run: %d newly-supplied token(s) answered locally",
+                len(local),
+            )
 
     resolved, done = _poll_to_done()
     if not done:
@@ -824,6 +857,8 @@ def transliterate_tokens_batched(
         return resolved
     _state_path(checkpoint_path).unlink(missing_ok=True)
 
+    unresolved = [token for token in unique_tokens if token not in resolved]
+    resolved.update(_resolve_tail(unresolved))
     unresolved = [token for token in unique_tokens if token not in resolved]
     passes = 0
     # A chain the caller wrote without `llm` must not acquire one here. The
@@ -862,6 +897,8 @@ def transliterate_tokens_batched(
             logger.warning("max_wait exceeded during requeue; rerun to resume")
             return resolved
         _state_path(checkpoint_path).unlink(missing_ok=True)
+        unresolved = [token for token in unique_tokens if token not in resolved]
+        resolved.update(_resolve_tail(unresolved))
         unresolved = [token for token in unique_tokens if token not in resolved]
 
     if unresolved:

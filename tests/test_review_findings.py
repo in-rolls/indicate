@@ -16,6 +16,8 @@ with no table -- which is every installed user -- was covered by nothing.
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 
 import indicate
@@ -29,6 +31,19 @@ from . import conftest
 PA = PAIRS[("punjabi", "english")]
 SINGH = "ਸਿੰਘ"
 KAUR = "ਕੌਰ"
+
+
+def _require_table() -> None:
+    """Skip only when the table is genuinely absent.
+
+    Checked against the table directly, never against the result under test:
+    a guard like ``if out.get(SINGH) is None: skip()`` turns the very defect
+    being asserted into a silent skip.
+    """
+    if batch_mod._resolve_locally([SINGH], "punjabi", "english", ("lookup",)) != {
+        SINGH: "singh"
+    }:
+        pytest.skip("punjabi lookup table not built")
 
 
 @pytest.fixture
@@ -241,6 +256,80 @@ def test_cli_detection_looks_past_leading_blank_lines(runner, text_file, tmp_pat
         assert "nothing could answer" in result.output, result.output
         return
     assert out.read_text(encoding="utf-8").strip().endswith("singh")
+
+
+@pytest.mark.needs_lookup
+def test_a_local_backend_after_llm_runs_before_anything_is_requeued(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    # engine=("llm", "lookup") puts a free local backend *after* the provider.
+    # _resolve_locally only runs the prefix before "llm", so that backend had
+    # never run at all -- and the requeue loop then hard-coded engine=("llm",)
+    # and billed for the same tokens again. The table can answer this word for
+    # free; it must be asked before a second submission is paid for.
+    from .test_batch import FakeBatchAPI
+
+    _require_table()
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    fake = FakeBatchAPI(mismatch_multi=True)
+    with patch.object(batch_mod, "litellm", fake):
+        out = batch_mod.transliterate_tokens_batched(
+            [SINGH, KAUR],
+            "punjabi",
+            "english",
+            checkpoint_path=tmp_path / "c.jsonl",
+            provider="openai",
+            group_size=2,
+            use_few_shot=False,
+            engine=("llm", "lookup"),
+            poll_interval=0,
+            requeue_passes=0,  # no paid retries allowed at all
+        )
+    # Answered by the table, after the provider dropped it, with zero requeues.
+    assert out.get(SINGH) == "singh", out
+
+
+@pytest.mark.needs_lookup
+def test_resuming_with_new_tokens_still_consults_the_table_first(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    # Resume path: a state file already exists, so the driver skipped
+    # submit_transliteration_batches entirely -- and with it the local prefix.
+    # Tokens added on the resume therefore bypassed the free table and went
+    # straight to the paid requeue.
+    from .test_batch import FakeBatchAPI
+
+    _require_table()
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    ckpt = tmp_path / "c.jsonl"
+    fake = FakeBatchAPI()
+    with patch.object(batch_mod, "litellm", fake):
+        # Leave a batch in flight for a word the table does not know.
+        batch_mod.submit_transliteration_batches(
+            ["ZZZQQ"],
+            "punjabi",
+            "english",
+            checkpoint_path=ckpt,
+            provider="openai",
+            use_few_shot=False,
+            engine=("lookup", "llm"),
+        )
+        submitted_before = set(fake.batches)
+        # Resume, adding a word the table *does* know.
+        out = batch_mod.transliterate_tokens_batched(
+            ["ZZZQQ", SINGH],
+            "punjabi",
+            "english",
+            checkpoint_path=ckpt,
+            provider="openai",
+            use_few_shot=False,
+            engine=("lookup", "llm"),
+            poll_interval=0,
+            requeue_passes=0,
+        )
+    assert out.get(SINGH) == "singh", out
+    # And it was never sent anywhere: the only batch is the pre-existing one.
+    assert set(fake.batches) == submitted_before
 
 
 def test_status_is_not_ready_when_only_half_the_weights_are_present(

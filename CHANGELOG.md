@@ -107,6 +107,15 @@
   and no `ORDER BY`, which can duplicate or skip rows between pages.
 - Tests can no longer reach a real provider: `tests/conftest.py` replaces every
   provider credential with an obvious fake for the whole suite.
+- **A local backend placed after `llm` never ran.** `engine=("lookup", "llm",
+  "model")` resolves only the prefix before `llm` locally, so words the provider
+  missed went straight back to the provider instead of to the free local
+  decoder the caller had asked for. Backends after `llm` now run before any
+  requeue is paid for.
+- **Resuming a batch with new tokens bypassed the table.** With a state file
+  present the driver skipped submission entirely, and with it the local prefix,
+  so tokens added on the resume went straight to the paid requeue. They are now
+  offered to the local backends first.
 
 ### Testing
 

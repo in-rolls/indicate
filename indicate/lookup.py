@@ -99,7 +99,31 @@ _CACHE: dict[str, Lookup | None] = {}
 # Bounded cache: corpus tokens are Zipf-distributed, so the same few thousand
 # words are keyed over and over. Uncached this is the throughput bottleneck
 # (412k tok/s vs 2.4M) because str.strip against a 40-character set is not free.
+#
+# The edges are returned from here rather than recomputed in `get` for exactly
+# that reason. An earlier version did the two extra strips per call on the hit
+# path and broke the floor in tests/test_lookup_bench.py. Cached alongside the
+# key, they cost nothing after a word is first seen -- which is the whole point
+# of caching on a Zipf-distributed stream.
 @lru_cache(maxsize=1 << 17)
+def split_edges(word: str) -> tuple[str, str, str]:
+    """Split a surface word into its stripped prefix, table key, and suffix.
+
+    Args:
+        word: A token as it appears in text.
+
+    Returns:
+        ``(prefix, key, suffix)``. The key is ``""`` when nothing lookup-worthy
+        remains, in which case the edges are empty too.
+    """
+    core = strip_edge_noise(word)
+    if not core:
+        return "", "", ""
+    start = len(word) - len(word.lstrip(EDGE_NOISE))
+    end = len(word.rstrip(EDGE_NOISE))
+    return word[:start], gaz_key(core), word[end:]
+
+
 def lookup_key(word: str) -> str:
     """Return the table key for a surface word.
 
@@ -112,7 +136,7 @@ def lookup_key(word: str) -> str:
     Returns:
         The normalized key, or ``""`` when nothing lookup-worthy remains.
     """
-    return gaz_key(strip_edge_noise(word))
+    return split_edges(word)[1]
 
 
 #: How many keys to check before trusting that a whole table is normalized.
@@ -178,17 +202,14 @@ class Lookup:
         Returns:
             The stored romanization with the original edges, or ``None``.
         """
-        key = lookup_key(word)
+        prefix, key, suffix = split_edges(word)
         if not key:
             return None
         hit = self._table.get(key)
         if hit is None:
             return None
-        # strip_edge_noise is a plain str.strip, so what it removed is exactly
-        # the head and tail slices -- computed, never searched for.
-        start = len(word) - len(word.lstrip(EDGE_NOISE))
-        end = len(word.rstrip(EDGE_NOISE))
-        return word[:start] + hit + word[end:]
+        # The overwhelmingly common case has no edges at all; skip the joins.
+        return prefix + hit + suffix if prefix or suffix else hit
 
     @classmethod
     def from_path(cls, path: Path) -> Lookup | None:

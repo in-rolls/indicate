@@ -1024,6 +1024,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "indic-transliteration" },
     { name = "pre-commit" },
     { name = "pydoclint" },
     { name = "pyright" },
@@ -1068,6 +1069,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "indic-transliteration", specifier = ">=2.3" },
     { name = "pre-commit", specifier = ">=4" },
     { name = "pydoclint", specifier = ">=0.5" },
     { name = "pyright", specifier = ">=1.1.390" },

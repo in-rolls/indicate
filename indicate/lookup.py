@@ -57,7 +57,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from .logging import get_logger
-from .normalize import NORMALIZER_VERSION, gaz_key, strip_edge_noise
+from .normalize import EDGE_NOISE, NORMALIZER_VERSION, gaz_key, strip_edge_noise
 from .resources import local_data_path, try_resolve_data
 
 logger = get_logger()
@@ -166,16 +166,29 @@ class Lookup:
     def get(self, word: str) -> str | None:
         """Return the romanization for ``word``, or ``None`` on a miss.
 
+        Edge punctuation and digit prefixes are put back. The key is built by
+        stripping them, so returning the bare stored value silently deleted
+        source text: ``ਸਿੰਘ,`` became ``singh``, ``(ਸਿੰਘ)`` became ``singh``,
+        and the roll serial in ``022-ਖੇਮਕਰਨ`` vanished. That happened on the
+        *default* chain, because the table answers first.
+
         Args:
             word: A token as it appears in text.
 
         Returns:
-            The stored romanization, or ``None``.
+            The stored romanization with the original edges, or ``None``.
         """
         key = lookup_key(word)
         if not key:
             return None
-        return self._table.get(key)
+        hit = self._table.get(key)
+        if hit is None:
+            return None
+        # strip_edge_noise is a plain str.strip, so what it removed is exactly
+        # the head and tail slices -- computed, never searched for.
+        start = len(word) - len(word.lstrip(EDGE_NOISE))
+        end = len(word.rstrip(EDGE_NOISE))
+        return word[:start] + hit + word[end:]
 
     @classmethod
     def from_path(cls, path: Path) -> Lookup | None:

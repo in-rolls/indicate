@@ -86,9 +86,17 @@ class TestGet(unittest.TestCase):
             table = self._table(tmp, ((QA_DECOMPOSED, "qa"),))
             self.assertEqual(table.get(QA_PRECOMPOSED), "qa")
 
-    def test_strips_edge_punctuation_from_the_query(self):
+    def test_edge_punctuation_is_ignored_when_matching_and_kept_in_the_answer(self):
+        # Two separate jobs. Edge noise must not stop a hit -- that is what
+        # keying through strip_edge_noise buys -- but it must survive into the
+        # output, or answering from the table silently deletes the caller's
+        # text. This asserted the deletion until it was caught in review.
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(self._table(tmp).get(f"({GURMUKHI_SINGH})"), "singh")
+            table = self._table(tmp)
+            self.assertEqual(table.get(f"({GURMUKHI_SINGH})"), "(singh)")
+            self.assertEqual(table.get(f"{GURMUKHI_SINGH},"), "singh,")
+            self.assertEqual(table.get(f"022-{GURMUKHI_SINGH}"), "022-singh")
+            self.assertEqual(table.get(GURMUKHI_SINGH), "singh")
 
     def test_empty_query_returns_none(self):
         with tempfile.TemporaryDirectory() as tmp:

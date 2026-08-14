@@ -38,7 +38,7 @@ if str(REPO_ROOT) not in sys.path:
 from indicate.languages import PAIRS  # noqa: E402
 from indicate.lookup import LOOKUP_FILE  # noqa: E402
 from indicate.resources import HF_REPO, HF_REVISION, local_data_path  # noqa: E402
-from indicate.transliterator import ENCODER_FILE  # noqa: E402
+from indicate.transliterator import DECODER_FILE, ENCODER_FILE  # noqa: E402
 
 #: How to produce each missing artifact, quoted back to the developer.
 FIX = {
@@ -94,7 +94,10 @@ def weights_available(subdir: str) -> bool:
     Returns:
         True if the weights are on disk or already cached.
     """
-    return _available(subdir, ENCODER_FILE)
+    # Both files, matching languages.status(). With only the encoder cached --
+    # an interrupted download -- the needs_weights tests used to run and fail
+    # for a reason that looks nothing like "an artifact is missing".
+    return _available(subdir, ENCODER_FILE) and _available(subdir, DECODER_FILE)
 
 
 def _missing() -> dict[str, list[str]]:

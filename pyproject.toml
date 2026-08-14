@@ -48,6 +48,12 @@ dev = [
     "pydoclint>=0.5",
     "pre-commit>=4",
     "types-tqdm>=4.66",
+    # [tool.pyright] includes gazetteer/, and gazetteer/phonetic.py imports
+    # this. Without it here, `make type-check` after a plain `uv sync --dev`
+    # reports a missing import that has nothing to do with the change in hand.
+    # Named individually rather than pulling in the whole train group, which
+    # carries pandas, pyarrow, matplotlib and datasets.
+    "indic-transliteration>=2.3",
     { include-group = "test" },
 ]
 test = [

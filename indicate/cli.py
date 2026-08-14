@@ -203,6 +203,21 @@ def transliterate(
             sys.exit(1)
 
         src, tgt = resolve_pair(source, target, " ".join(lines[:50]))
+
+        if dry_run:
+            # Before _run, not after. Downstream of the backend a "dry" run has
+            # already downloaded weights and, with --engine llm, already paid
+            # for the answer it then throws away. It also used to be ignored
+            # entirely without --output, since the check sat inside that branch.
+            where = (
+                f"to {output_file} as {output_format}" if output_file else "to stdout"
+            )
+            click.echo(
+                f"Would write {len(lines)} result(s) {where}, "
+                f"{src}->{tgt} via {','.join(engine)}.",
+                err=True,
+            )
+            return
         # Progress only on an interactive terminal, so it never pollutes
         # captured or redirected stdout (CliRunner mixes stderr into output).
         if not quiet and sys.stderr.isatty():
@@ -241,13 +256,6 @@ def transliterate(
             )
             for index, (line, out) in enumerate(zip(lines, outputs, strict=True))
         ]
-        if dry_run:
-            click.echo(
-                f"Would write {len(results)} result(s) to {output_file} "
-                f"as {output_format}.",
-                err=True,
-            )
-            return
         if backup and output_file.exists():
             created = create_backup(output_file)
             if created and not quiet:
@@ -290,8 +298,15 @@ def _read_input(text: str | None, input_file: IO[str] | None) -> list[str]:
             return read_input_file(Path(name))
         return [line.rstrip("\n") for line in input_file.readlines()]
     if not sys.stdin.isatty():
-        content = sys.stdin.read().strip()
-        return [content] if content else []
+        # One element per line, as the file path does. Returning the whole
+        # stream as a single element handed the backend a token containing a
+        # newline, which matches nothing and collapsed every piped line into
+        # one output line -- or, with a table-only chain, into no output at all.
+        content = sys.stdin.read()
+        lines = content.split("\n")
+        if lines and lines[-1] == "":
+            lines.pop()
+        return lines if any(line.strip() for line in lines) else []
     click.echo("No input provided. Use --help for usage information.", err=True)
     sys.exit(1)
 

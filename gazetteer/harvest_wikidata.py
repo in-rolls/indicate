@@ -173,8 +173,14 @@ def harvest(
             try:
                 bindings = run_query(query)
             except Exception as exc:
-                print(f"  {entity} page {page}: {exc}", file=sys.stderr)
-                break
+                # Raise, do not break. Breaking returned whatever had been
+                # collected so far, and main() then overwrote a complete TSV
+                # with the truncated result and exited 0 -- so a transient WDQS
+                # timeout silently shrank the corpus and looked like a success.
+                raise RuntimeError(
+                    f"{entity} page {page} failed after {len(rows):,} rows: {exc}. "
+                    f"Refusing to write a partial harvest over a complete one."
+                ) from exc
             rows.extend(rows_from_bindings(bindings, entity))
             print(
                 f"  {entity} page {page}: {len(bindings):,} bindings, "

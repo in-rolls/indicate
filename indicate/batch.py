@@ -795,6 +795,12 @@ def transliterate_tokens_batched(
 
     unresolved = [token for token in unique_tokens if token not in resolved]
     passes = 0
+    # A chain the caller wrote without `llm` must not acquire one here. The
+    # requeue below hard-codes engine=("llm",) -- correct when the caller asked
+    # for a provider, a surprise bill when they asked engine=("lookup",) and the
+    # table simply had no entry.
+    if "llm" not in engine:
+        requeue_passes = 0
     while unresolved and passes < requeue_passes:
         passes += 1
         logger.info(

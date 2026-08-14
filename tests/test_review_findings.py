@@ -103,8 +103,12 @@ def test_detection_looks_past_a_run_of_blank_inputs():
 
 
 def test_a_table_that_is_not_utf8_disables_itself_instead_of_raising(
-    tmp_path, monkeypatch: pytest.MonkeyPatch
+    tmp_path, monkeypatch: pytest.MonkeyPatch, fresh_caches
 ):
+    # fresh_caches, because loading a table caches the result under the real
+    # subdir key. Without it this test leaves _CACHE[punjabi] = None behind and
+    # every later test that expects a working table fails -- which is exactly
+    # what it did, and only in whole-file runs.
     # Valid gzip, invalid UTF-8 -- the decode error surfaces during iteration,
     # not at open(), so it sat outside the caught set and escaped
     # LookupBackend.resolve, taking the model fallback down with it.
@@ -131,6 +135,46 @@ def test_dry_run_does_not_create_the_output_directory(tmp_path):
     assert result.exit_code == 0, result.output
     # "Would write" and then a directory on disk is not a dry run.
     assert not missing.exists()
+
+
+@pytest.mark.needs_lookup
+def test_a_table_hit_keeps_the_punctuation_it_was_given():
+    # lookup_key strips edge punctuation and digit prefixes to build the key, so
+    # returning the bare stored value deleted them from the output -- on the
+    # default chain, because the table answers first. `022-` is a roll serial;
+    # losing it silently corrupts the record.
+    hit = indicate.transliterate("ਸਿੰਘ", source="punjabi")
+    if hit != "singh":
+        pytest.skip("punjabi table not built")
+    for given, expected in (
+        ("ਸਿੰਘ,", "singh,"),
+        ("(ਸਿੰਘ)", "(singh)"),
+        ("022-ਸਿੰਘ", "022-singh"),
+    ):
+        assert indicate.transliterate(given, source="punjabi") == expected
+
+
+def test_dry_run_never_reaches_a_backend(monkeypatch: pytest.MonkeyPatch, tmp_path):
+    # --dry-run used to call _run first and check the flag afterwards, so
+    # `--engine llm --dry-run` paid for an answer it then discarded, and without
+    # --output the flag was ignored altogether.
+    from click.testing import CliRunner
+
+    import indicate.api as api_mod
+    from indicate.cli import cli
+
+    def explode(*a, **k):  # pragma: no cover - must never run
+        raise AssertionError("a dry run reached the backend")
+
+    monkeypatch.setattr(api_mod, "transliterate_batch", explode)
+    for args in (
+        ["transliterate", SINGH, "--dry-run"],
+        ["transliterate", SINGH, "--dry-run", "--output", str(tmp_path / "o.txt")],
+        ["transliterate", SINGH, "--dry-run", "--engine", "llm"],
+    ):
+        result = CliRunner().invoke(cli, args)
+        assert result.exit_code == 0, (args, result.output)
+        assert "Would write" in result.output, args
 
 
 def test_status_is_not_ready_when_only_half_the_weights_are_present(

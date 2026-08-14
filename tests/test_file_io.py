@@ -9,11 +9,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from indicate.cli import cli
 
 
+@pytest.mark.needs_weights
 class TestFileIO(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
@@ -27,7 +29,9 @@ class TestFileIO(unittest.TestCase):
             temp_file = f.name
 
         try:
-            result = self.runner.invoke(cli, ["hindi2english", "--input", temp_file])
+            result = self.runner.invoke(
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
+            )
             self.assertEqual(result.exit_code, 0)
             self.assertIn("hindi", result.output.lower())
         finally:
@@ -42,7 +46,7 @@ class TestFileIO(unittest.TestCase):
 
         try:
             result = self.runner.invoke(
-                cli, ["hindi2english", "हिंदी", "--output", temp_output]
+                cli, ["transliterate", "हिंदी", "--output", temp_output]
             )
             self.assertEqual(result.exit_code, 0)
 
@@ -71,12 +75,11 @@ class TestFileIO(unittest.TestCase):
             result = self.runner.invoke(
                 cli,
                 [
-                    "hindi2english",
+                    "transliterate",
                     "--input",
                     temp_input,
                     "--output",
-                    temp_output,
-                    "--batch",  # Use batch mode for multiline files
+                    temp_output,  # Use batch mode for multiline files
                 ],
             )
             self.assertEqual(result.exit_code, 0)
@@ -85,7 +88,7 @@ class TestFileIO(unittest.TestCase):
                 content = f.read()
 
             self.assertIn("gaurav", content.lower())
-            self.assertIn("rajshekar", content.lower())
+            self.assertIn("rajshekhar", content.lower())
         finally:
             Path(temp_input).unlink()
             Path(temp_output).unlink()
@@ -100,7 +103,7 @@ class TestFileIO(unittest.TestCase):
 
         try:
             result = self.runner.invoke(
-                cli, ["hindi2english", "--input", temp_file, "--batch"]
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
             )
             self.assertEqual(result.exit_code, 0)
 
@@ -108,7 +111,7 @@ class TestFileIO(unittest.TestCase):
             self.assertEqual(len(lines), 3)
             self.assertIn("hindi", lines[0].lower())
             self.assertIn("gaurav", lines[1].lower())
-            self.assertIn("rajshekar", lines[2].lower())
+            self.assertIn("rajshekhar", lines[2].lower())
         finally:
             Path(temp_file).unlink()
 
@@ -124,7 +127,7 @@ class TestFileIO(unittest.TestCase):
 
         try:
             result = self.runner.invoke(
-                cli, ["hindi2english", "--input", temp_file, "--batch"]
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
             )
             self.assertEqual(result.exit_code, 0)
 
@@ -142,7 +145,9 @@ class TestFileIO(unittest.TestCase):
             temp_file = f.name
 
         try:
-            result = self.runner.invoke(cli, ["hindi2english", "--input", temp_file])
+            result = self.runner.invoke(
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
+            )
             self.assertEqual(result.exit_code, 1)
             # Should fail gracefully for empty file with appropriate message
             self.assertIn("No text to transliterate", result.output)
@@ -152,7 +157,8 @@ class TestFileIO(unittest.TestCase):
     def test_nonexistent_input_file(self):
         """Test handling of non-existent input file."""
         result = self.runner.invoke(
-            cli, ["hindi2english", "--input", "/nonexistent/file.txt"]
+            cli,
+            ["transliterate", "--from", "hindi", "--input", "/nonexistent/file.txt"],
         )
         self.assertNotEqual(result.exit_code, 0)
         # Should fail gracefully with error message
@@ -161,7 +167,7 @@ class TestFileIO(unittest.TestCase):
         """Test handling of invalid output path."""
         result = self.runner.invoke(
             cli,
-            ["hindi2english", "हिंदी", "--output", "/nonexistent/directory/file.txt"],
+            ["transliterate", "हिंदी", "--output", "/nonexistent/directory/file.txt"],
         )
         self.assertNotEqual(result.exit_code, 0)
         # Should fail gracefully
@@ -179,7 +185,7 @@ class TestFileIO(unittest.TestCase):
 
         try:
             result = self.runner.invoke(
-                cli, ["hindi2english", "--input", temp_file, "--batch"]
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
             )
             self.assertEqual(result.exit_code, 0)
 
@@ -201,7 +207,7 @@ class TestFileIO(unittest.TestCase):
 
         try:
             result = self.runner.invoke(
-                cli, ["hindi2english", "--input", temp_file, "--batch"]
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
             )
             self.assertEqual(result.exit_code, 0)
 
@@ -222,7 +228,9 @@ class TestFileIO(unittest.TestCase):
         try:
             # Make file readable
             Path(temp_file).chmod(0o644)
-            result = self.runner.invoke(cli, ["hindi2english", "--input", temp_file])
+            result = self.runner.invoke(
+                cli, ["transliterate", "--from", "hindi", "--input", temp_file]
+            )
             self.assertEqual(result.exit_code, 0)
         finally:
             Path(temp_file).unlink()

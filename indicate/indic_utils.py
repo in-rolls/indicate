@@ -1,155 +1,72 @@
-"""Utilities for Indic language detection and validation."""
+"""Script detection and text-shape helpers for Indic input.
+
+The language, script and alias tables these functions used to carry are now in
+:mod:`indicate.languages`; there had been four overlapping copies. These are the
+thin, text-facing wrappers around them.
+"""
 
 from __future__ import annotations
 
+from .languages import (
+    INDIC_SCRIPTS,
+    LANGUAGES,
+    detect,
+    detect_script,
+)
+
 
 def detect_indic_script(text: str) -> str | None:
-    """Auto-detect Indic script from Unicode ranges.
+    """Auto-detect the dominant script of a string.
 
     Args:
         text: Text to analyze.
 
     Returns:
-        Detected script name or None if not Indic.
+        Script name, ``"latin"`` for mostly-ASCII text, or ``None``.
     """
-    if not text:
-        return None
-
-    # Unicode ranges for Indic scripts
-    scripts = {
-        "devanagari": (0x0900, 0x097F),  # Hindi, Marathi, Sanskrit, Nepali
-        "bengali": (0x0980, 0x09FF),  # Bengali, Assamese
-        "gurmukhi": (0x0A00, 0x0A7F),  # Punjabi
-        "gujarati": (0x0A80, 0x0AFF),  # Gujarati
-        "odia": (0x0B00, 0x0B7F),  # Odia
-        "tamil": (0x0B80, 0x0BFF),  # Tamil
-        "telugu": (0x0C00, 0x0C7F),  # Telugu
-        "kannada": (0x0C80, 0x0CFF),  # Kannada
-        "malayalam": (0x0D00, 0x0D7F),  # Malayalam
-        "sinhala": (0x0D80, 0x0DFF),  # Sinhala
-        "thai": (0x0E00, 0x0E7F),  # Thai
-        "lao": (0x0E80, 0x0EFF),  # Lao
-        "tibetan": (0x0F00, 0x0FFF),  # Tibetan
-        "myanmar": (0x1000, 0x109F),  # Myanmar
-        "arabic": (0x0600, 0x06FF),  # Arabic, Urdu, Persian
-    }
-
-    # Count characters in each script
-    script_counts = dict.fromkeys(scripts, 0)
-
-    for char in text:
-        code_point = ord(char)
-        for script, (start, end) in scripts.items():
-            if start <= code_point <= end:
-                script_counts[script] += 1
-                break
-
-    # Return the script with the most characters
-    max_script = max(script_counts, key=lambda s: script_counts[s])
-    if script_counts[max_script] > 0:
-        return max_script
-
-    # Check for Latin script
-    latin_count = sum(1 for char in text if ord(char) < 0x0080)
-    if latin_count > len(text) * 0.5:
-        return "latin"
-
-    return None
+    return detect_script(text)
 
 
 def detect_language_from_script(text: str) -> str | None:
-    """Detect the most likely language based on script and context.
+    """Guess the language of a string from its script.
 
     Args:
         text: Text to analyze.
 
     Returns:
-        Detected language name or None.
+        Language name, or ``None`` if the script maps to none.
     """
-    script = detect_indic_script(text)
-
-    if not script:
-        return None
-
-    # Map scripts to most common languages
-    script_to_language = {
-        "devanagari": "hindi",  # Could also be Marathi, Sanskrit, Nepali
-        "bengali": "bengali",  # Could also be Assamese
-        "gurmukhi": "punjabi",
-        "gujarati": "gujarati",
-        "odia": "odia",
-        "tamil": "tamil",
-        "telugu": "telugu",
-        "kannada": "kannada",
-        "malayalam": "malayalam",
-        "arabic": "urdu",  # In Indian context, likely Urdu
-        "latin": "english",
-    }
-
-    return script_to_language.get(script)
+    return detect(text)
 
 
 def is_indic_script(script: str) -> bool:
-    """Check if a script is an Indic script.
+    """Report whether a script name is an Indic script.
 
     Args:
         script: Script name.
 
     Returns:
-        True if script is Indic, False otherwise.
+        True if Indic.
     """
-    indic_scripts = {
-        "devanagari",
-        "bengali",
-        "gurmukhi",
-        "gujarati",
-        "odia",
-        "tamil",
-        "telugu",
-        "kannada",
-        "malayalam",
-        "sinhala",
-        "tibetan",
-        "myanmar",
-        "arabic",  # Arabic for Urdu in Indian context
-    }
-
-    return script in indic_scripts
+    return script in INDIC_SCRIPTS
 
 
 def validate_indic_language_pair(source: str, target: str) -> bool:
-    """Validate that at least one language is Indic.
+    """Report whether at least one side of a pair is Indic.
 
     Args:
-        source: Source language or script.
-        target: Target language or script.
+        source: Source language or script name.
+        target: Target language or script name.
 
     Returns:
-        True if valid (at least one is Indic), False otherwise.
+        True if either side is Indic.
     """
-    # Language to script mapping
-    language_scripts = {
-        "hindi": "devanagari",
-        "marathi": "devanagari",
-        "sanskrit": "devanagari",
-        "bengali": "bengali",
-        "punjabi": "gurmukhi",
-        "gujarati": "gujarati",
-        "odia": "odia",
-        "tamil": "tamil",
-        "telugu": "telugu",
-        "kannada": "kannada",
-        "malayalam": "malayalam",
-        "urdu": "arabic",
-        "english": "latin",
-    }
 
-    # Get scripts for languages
-    source_script = language_scripts.get(source, source)
-    target_script = language_scripts.get(target, target)
+    def script_of(name: str) -> str:
+        language = LANGUAGES.get(name)
+        return language.script if language else name
 
-    # At least one must be Indic
-    return is_indic_script(source_script) or is_indic_script(target_script)
+    return is_indic_script(script_of(source)) or is_indic_script(script_of(target))
 
 
 def normalize_text_for_transliteration(text: str) -> str:

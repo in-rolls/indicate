@@ -20,14 +20,38 @@ Provider support is LiteLLM's batch support: **openai, azure, vertex_ai, bedrock
 vllm** -- *not* native Anthropic. To use Claude in batch mode, go through Bedrock
 (``provider="bedrock"``, model ``"anthropic.claude-sonnet-4-6"``) or add a native
 Anthropic ``messages.batches`` adapter later. The default provider is ``openai``.
+
+**The cheapest request is the one you do not send.** Before submitting anything,
+:func:`submit_transliteration_batches` runs the local part of ``engine`` --
+everything before ``"llm"`` -- and writes what it answers straight to the
+checkpoint. Measured on 1M rows of the Punjab roll with the default
+``("lookup", "llm")``:
+
+=========================  ==============  ===========
+                           llm only        with lookup
+=========================  ==============  ===========
+unique tokens to resolve   46,902          1,497
+batch requests submitted   1,877           60
+=========================  ==============  ===========
+
+That is 96.8% of *unique* tokens, which is the number that matters here -- a
+batch API deduplicates, so token frequency buys nothing. It is this high because
+the roll shares a vocabulary with the corpus the table was built from; general
+text would see much less.
+
+``engine=("lookup", "model", "llm")`` goes further and decodes the table's
+misses locally, submitting only what both decline. ``engine=("llm",)`` submits
+everything.
 """
 
 from __future__ import annotations
 
+import itertools
 import json
 import os
 import tempfile
 import time
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -42,6 +66,9 @@ logger = get_logger()
 DEFAULT_GROUP_SIZE = 25
 DEFAULT_MAX_REQUESTS_PER_BATCH = 50_000
 BATCH_ENDPOINT = "/v1/chat/completions"
+
+#: Answer from the table first, submit only what it declines.
+DEFAULT_BATCH_ENGINE: tuple[str, ...] = ("lookup", "llm")
 
 
 # --------------------------------------------------------------------------- #
@@ -118,6 +145,89 @@ def _load_resolved(checkpoint_path: Path) -> dict[str, str]:
             record = json.loads(line)
             resolved[record["token"]] = record["translit"]
     return resolved
+
+
+def _resolve_locally(
+    tokens: list[str], source_lang: str, target_lang: str, engine: Sequence[str]
+) -> dict[str, str]:
+    """Answer whatever the local backends in ``engine`` can, before submitting.
+
+    A batch API call costs money and returns in hours; a table read costs
+    nothing and returns in nanoseconds. On roll-shaped input the table covers
+    99% of tokens, so this is the difference between submitting a million
+    requests and submitting ten thousand.
+
+    Only the prefix of ``engine`` before ``"llm"`` runs here -- everything after
+    it is what the provider is for. That is what makes
+    ``("lookup", "model", "llm")`` mean "read the table, decode what is left
+    locally, and submit only the residue".
+
+    Args:
+        tokens: Unique source tokens about to be submitted.
+        source_lang: Normalized source language.
+        target_lang: Normalized target language.
+        engine: The full chain; the ``llm`` suffix is ignored.
+
+    Returns:
+        Token to romanization for the tokens answered locally.
+    """
+    from .engine import (
+        BackendsUnavailableError,
+        build,
+        normalize_engine,
+        resolve_words,
+    )
+    from .languages import (
+        PAIRS,
+        UnknownLanguageError,
+        UnsupportedPairError,
+    )
+    from .languages import normalize as normalize_language
+
+    # Validate the whole chain before anything else, and let it raise. A typo
+    # like ("lookpu", "llm") used to be swallowed as "no local backend here",
+    # after which every token was submitted to a paid provider. A misspelling
+    # must cost an exception, not money.
+    normalize_engine(engine)
+
+    prefix = list(itertools.takewhile(lambda name: name != "llm", engine))
+    if not prefix or not tokens:
+        return {}
+
+    # Normalized here, not at the call sites, so every caller gets it. PAIRS is
+    # keyed on canonical names, and the llm path gets normalization for free
+    # from IndicLLMTransliterator -- so without this the documented aliases
+    # ("pa", "en") silently resolved nothing while the paid path handled them.
+    try:
+        source_lang = normalize_language(source_lang)
+        target_lang = normalize_language(target_lang)
+    except UnknownLanguageError:
+        return {}
+
+    pair = PAIRS.get((source_lang, target_lang))
+    if pair is None:
+        return {}
+    try:
+        backends = build(prefix, pair)
+    except UnsupportedPairError as exc:
+        logger.debug(f"no local backend for {source_lang}->{target_lang}: {exc}")
+        return {}
+    try:
+        resolved = resolve_words(tokens, backends)
+    except BackendsUnavailableError as exc:
+        # Nothing local could run -- no table built, no weights. That is fatal
+        # for a bare `transliterate()` call, which has nothing else to try, but
+        # here the `llm` suffix is exactly the fallback. Resolve nothing and let
+        # every token be submitted. Without this, the default ("lookup", "llm")
+        # chain aborted the whole batch on any machine with no lookup table,
+        # which is every installed user.
+        logger.debug(f"no local backend could run, submitting everything: {exc}")
+        return {}
+    return {
+        token: candidates[0][0]
+        for token, candidates in zip(tokens, resolved, strict=True)
+        if candidates
+    }
 
 
 def _append_resolved(checkpoint_path: Path, pairs: dict[str, str]) -> None:
@@ -430,11 +540,16 @@ def submit_transliteration_batches(
     use_few_shot: bool = True,
     temperature: float = 0.3,
     max_requests_per_batch: int = DEFAULT_MAX_REQUESTS_PER_BATCH,
+    engine: Sequence[str] = DEFAULT_BATCH_ENGINE,
 ) -> BatchState:
     """Submit unique ``tokens`` to the provider Batch API. Does not block.
 
     Already-resolved tokens (present in the checkpoint) and duplicates/blanks are
     skipped. Returns the persisted :class:`BatchState`.
+
+    Backends in ``engine`` before ``"llm"`` run locally first; whatever they
+    answer is written straight to the checkpoint and never submitted. Pass
+    ``engine=("llm",)`` to send everything to the provider.
     """
     checkpoint_path = Path(checkpoint_path)
     resolved = _load_resolved(checkpoint_path)
@@ -447,11 +562,53 @@ def submit_transliteration_batches(
         seen.add(token)
         todo.append(token)
 
+    if "llm" not in engine:
+        # A chain with no `llm` is a local-only probe -- engine=("lookup",) is
+        # the documented "is my corpus already covered?" question. Submitting
+        # its misses to a provider answers a question nobody asked and bills for
+        # it, so resolve locally and stop. Ahead of _make_transliterator, which
+        # would otherwise demand an API key for a run that needs none.
+        local = _resolve_locally(todo, source_lang, target_lang, engine) if todo else {}
+        if local:
+            _append_resolved(checkpoint_path, local)
+        logger.info(
+            "engine=%s has no llm; answered %d of %d token(s) locally, "
+            "submitted nothing",
+            ",".join(engine),
+            len(local),
+            len(todo),
+        )
+        return BatchState(
+            provider=provider or "none",
+            model=model or "none",
+            source_lang=source_lang,
+            target_lang=target_lang,
+            group_size=group_size,
+            temperature=temperature,
+            use_few_shot=use_few_shot,
+            jobs=[],
+        )
+
     transliterator = _make_transliterator(
         source_lang, target_lang, provider, model, api_key, temperature
     )
     provider = provider or transliterator.provider
     model = model or transliterator.model
+
+    if todo:
+        # After _make_transliterator so the language names are normalized.
+        local = _resolve_locally(
+            todo, transliterator.source_lang, transliterator.target_lang, engine
+        )
+        if local:
+            _append_resolved(checkpoint_path, local)
+            todo = [token for token in todo if token not in local]
+            logger.info(
+                "Local backends answered %d of %d token(s); submitting %d",
+                len(local),
+                len(local) + len(todo),
+                len(todo),
+            )
 
     state = _load_state(checkpoint_path) or BatchState(
         provider=provider,
@@ -596,6 +753,7 @@ def transliterate_tokens_batched(
     max_wait: float | None = None,
     requeue_passes: int = 2,
     max_requests_per_batch: int = DEFAULT_MAX_REQUESTS_PER_BATCH,
+    engine: Sequence[str] = DEFAULT_BATCH_ENGINE,
 ) -> dict[str, str]:
     """Submit ``tokens`` in batch mode and poll to completion; return token->translit.
 
@@ -603,10 +761,30 @@ def transliterate_tokens_batched(
     submission and resumes polling. Tokens whose group output was malformed are
     requeued one-per-request (up to ``requeue_passes``). If ``max_wait`` elapses with
     batches still running, returns what is resolved so far -- rerun later to resume.
+
+    ``engine`` decides how much is answered before anything is submitted. The
+    default reads the packaged table first; ``("lookup", "model", "llm")`` also
+    decodes locally, and ``("llm",)`` submits everything.
     """
     checkpoint_path = Path(checkpoint_path)
     unique_tokens = [token for token in dict.fromkeys(tokens) if token]
     start = time.time()
+
+    if "llm" not in engine:
+        # Handled entirely here, before _make_transliterator. Guarding only the
+        # requeue further down still demanded an API key on the way in, so a
+        # documented local-only probe failed with "No LLM provider detected".
+        submit_transliteration_batches(
+            unique_tokens,
+            source_lang,
+            target_lang,
+            checkpoint_path=checkpoint_path,
+            group_size=group_size,
+            use_few_shot=use_few_shot,
+            temperature=temperature,
+            engine=engine,
+        )
+        return _load_resolved(checkpoint_path)
 
     transliterator = _make_transliterator(
         source_lang, target_lang, provider, model, api_key, temperature
@@ -623,6 +801,25 @@ def transliterate_tokens_batched(
                 return resolved, False
             time.sleep(poll_interval)
 
+    def _resolve_tail(tokens: list[str]) -> dict[str, str]:
+        """Run the backends that sit *after* ``llm``, and record what they answer.
+
+        ``_resolve_locally`` only runs the prefix before ``llm``, so a chain like
+        ``("lookup", "llm", "model")`` never reached ``model`` at all: the words
+        the provider missed went straight back to the provider. Free backends
+        the caller explicitly asked for must be tried before anything is paid
+        for a second time.
+        """
+        tail = tuple(itertools.dropwhile(lambda name: name != "llm", engine))[1:]
+        if not tokens or not tail:
+            return {}
+        # The trailing "llm" is a sentinel, never run: _resolve_locally executes
+        # the prefix before it, and here that prefix is exactly the tail.
+        answered = _resolve_locally(tokens, source_lang, target_lang, (*tail, "llm"))
+        if answered:
+            _append_resolved(checkpoint_path, answered)
+        return answered
+
     if _load_state(checkpoint_path) is None:
         submit_transliteration_batches(
             unique_tokens,
@@ -637,7 +834,22 @@ def transliterate_tokens_batched(
             use_few_shot=use_few_shot,
             temperature=temperature,
             max_requests_per_batch=max_requests_per_batch,
+            engine=engine,
         )
+    else:
+        # Resuming onto an in-flight batch. Tokens added on this call were never
+        # offered to the local prefix, because that runs inside
+        # submit_transliteration_batches, which is skipped here -- so they
+        # bypassed the free table and went straight to the paid requeue below.
+        already = _load_resolved(checkpoint_path)
+        fresh = [token for token in unique_tokens if token not in already]
+        local = _resolve_locally(fresh, source_lang, target_lang, engine)
+        if local:
+            _append_resolved(checkpoint_path, local)
+            logger.info(
+                "Resumed run: %d newly-supplied token(s) answered locally",
+                len(local),
+            )
 
     resolved, done = _poll_to_done()
     if not done:
@@ -646,7 +858,15 @@ def transliterate_tokens_batched(
     _state_path(checkpoint_path).unlink(missing_ok=True)
 
     unresolved = [token for token in unique_tokens if token not in resolved]
+    resolved.update(_resolve_tail(unresolved))
+    unresolved = [token for token in unique_tokens if token not in resolved]
     passes = 0
+    # A chain the caller wrote without `llm` must not acquire one here. The
+    # requeue below hard-codes engine=("llm",) -- correct when the caller asked
+    # for a provider, a surprise bill when they asked engine=("lookup",) and the
+    # table simply had no entry.
+    if "llm" not in engine:
+        requeue_passes = 0
     while unresolved and passes < requeue_passes:
         passes += 1
         logger.info(
@@ -668,12 +888,17 @@ def transliterate_tokens_batched(
             use_few_shot=use_few_shot,
             temperature=temperature,
             max_requests_per_batch=max_requests_per_batch,
+            # These already went through the local backends and were declined;
+            # rerunning them would find nothing.
+            engine=("llm",),
         )
         resolved, done = _poll_to_done()
         if not done:
             logger.warning("max_wait exceeded during requeue; rerun to resume")
             return resolved
         _state_path(checkpoint_path).unlink(missing_ok=True)
+        unresolved = [token for token in unique_tokens if token not in resolved]
+        resolved.update(_resolve_tail(unresolved))
         unresolved = [token for token in unique_tokens if token not in resolved]
 
     if unresolved:

@@ -1,0 +1,45 @@
+name: hf-contract
+
+# Does the model repo still hold every file the loader will ask for?
+#
+# This is the check that would have caught `lookup.tsv.gz` 404ing at
+# soodoku/indicate while the weights returned 200 -- a state in which
+# `engine=["lookup"]` silently returned "" for every installed user. It needs
+# the network, so it runs only where that is worth it: the release path and a
+# weekly sweep, never on an ordinary pull request.
+#
+# It lives apart from e2e.yml because it needs a tag trigger, and a
+# tag-triggered workflow is a publishing workflow: a warm dependency cache
+# becomes a poisoning vector there. Hence no `enable-cache` below. Keeping the
+# two separate lets e2e.yml stay cached on the pull-request path.
+
+on:
+  push:
+    tags: ["v*"]
+  schedule:
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: hf-contract-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  live-hf:
+    name: hugging face contract
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          # Explicitly off, not merely unset: setup-uv caches by default, and on
+          # a tag-triggered workflow that cache is a poisoning vector. This job
+          # runs weekly and at release, so the cache buys almost nothing anyway.
+          enable-cache: false
+      - name: Check the model repo has every file the loader requests
+        run: uv run --frozen pytest -m live

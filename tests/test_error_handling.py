@@ -1,6 +1,16 @@
-#!/usr/bin/env python3
-"""
-Test error handling and recovery for the indicate package.
+"""Failure modes, asserted as behavior rather than as "something happened".
+
+This file used to be the weakest in the suite. Five tests invoked the
+``hindi2english`` command, which the API refactor deleted — Click answered "No
+such command", exit 2, and every assertion (``assertNotEqual(exit_code, 0)``,
+``assertIsNotNone(result)``) was satisfied by that. Four of them were the only
+coverage for path handling, invalid UTF-8 and missing files.
+
+Another handful wrapped the call in ``try/except Exception`` and asserted the
+exception was an ``Exception``, so every possible outcome passed.
+
+The rule applied here: replace each type check with the invariant the test was
+reaching for, and delete every ``try/except`` that turns a failure into a pass.
 """
 
 from __future__ import annotations
@@ -8,190 +18,169 @@ from __future__ import annotations
 import unittest
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
-import indicate
 from indicate.cli import _get_version, cli
-from indicate.hindi2english import HindiToEnglish
+from tests.helpers import AGREED, hi, hi_batch
+
+HINDI, ROMAN = next(iter(AGREED.items()))
 
 
-class TestErrorHandling(unittest.TestCase):
+class TestVersion(unittest.TestCase):
+    def test_it_falls_back_when_the_package_is_not_installed(self):
+        with patch("indicate.cli.metadata.version") as version:
+            version.side_effect = Exception("Package not found")
+            self.assertEqual(_get_version(), "unknown")
+
+
+class TestInvalidArguments(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
-    def tearDown(self):
-        """Clean up any patches or mocks."""
-        # Ensure any patches are stopped
-        patch.stopall()
+    def test_an_unknown_option_is_refused(self):
+        result = self.runner.invoke(cli, ["transliterate", "--invalid-option"])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("no such option", result.output.lower())
 
-    def test_version_detection_fallback(self):
-        """Test version detection fallback when package not found."""
-        with patch("indicate.cli.metadata.version") as mock_version:
-            mock_version.side_effect = Exception("Package not found")
-            version = _get_version()
-            self.assertEqual(version, "unknown")
+    def test_an_unknown_backend_names_the_valid_ones(self):
+        # The failure branch of EngineChain.convert, previously untested.
+        result = self.runner.invoke(cli, ["transliterate", "x", "--engine", "quantum"])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("quantum", result.output)
+        for known in ("lookup", "model", "llm"):
+            self.assertIn(known, result.output)
 
-    def test_invalid_cli_arguments(self):
-        """Test handling of invalid CLI arguments."""
-        # Test invalid option
-        result = self.runner.invoke(cli, ["hindi2english", "--invalid-option"])
-        self.assertNotEqual(result.exit_code, 0)
+    def test_a_non_integer_candidate_count_is_refused(self):
+        result = self.runner.invoke(cli, ["transliterate", "x", "--n", "many"])
+        self.assertEqual(result.exit_code, 2)
 
-        # Test missing required argument when both text and input are None
-        result = self.runner.invoke(cli, ["hindi2english"])
-        # Should either work with stdin or show appropriate error
-        # This depends on Click's behavior
+    def test_the_deleted_per_language_commands_are_gone(self):
+        # Guards against a doc or script still calling the old surface.
+        for command in ("hindi2english", "punjabi2english", "llm"):
+            result = self.runner.invoke(cli, [command, "हिंदी"])
+            self.assertEqual(result.exit_code, 2, command)
+            self.assertIn("No such command", result.output)
 
-    def test_memory_pressure_handling(self):
-        """Test handling under memory pressure."""
-        # Test with a very long input that might cause memory issues
-        very_long_input = "हिंदी " * 1000
 
-        try:
-            result = indicate.hindi2english(very_long_input)
-            # Should either work or fail gracefully
-            self.assertIsInstance(result, str)
-        except Exception as e:
-            # If it fails, should be a reasonable exception
-            self.assertIsInstance(e, Exception)
+@pytest.mark.needs_weights
+class TestFileHandling(unittest.TestCase):
+    def setUp(self):
+        self.runner = CliRunner()
 
-    def test_model_loading_error_recovery(self):
-        """Test recovery from model loading errors."""
-        # This is a more complex test that would require mocking TensorFlow
-        # For now, we'll test that the class can be instantiated
-        instance = HindiToEnglish()
-        self.assertIsNotNone(instance)
-
-        # Test that singleton behavior works even after potential errors
-        instance2 = HindiToEnglish()
-        self.assertIs(instance, instance2)
-
-    def test_file_corruption_handling(self):
-        """Test handling of corrupted input files."""
-        # Test with invalid UTF-8 content
+    def test_a_byte_order_mark_is_stripped_not_transliterated(self):
+        # Exercises _read_text_input's BOM branch end to end. The old test
+        # asserted `result.output is not None`, which a crash also satisfies.
         with self.runner.isolated_filesystem():
-            # Create a file with invalid UTF-8
-            with open("corrupted.txt", "wb") as f:
-                f.write(b"\xff\xfe\x00\x00")  # Invalid UTF-8
-
+            with open("bom.txt", "wb") as handle:
+                handle.write(b"\xef\xbb\xbf" + HINDI.encode("utf-8"))
             result = self.runner.invoke(
-                cli, ["hindi2english", "--input", "corrupted.txt"]
+                cli, ["transliterate", "--from", "hindi", "--input", "bom.txt"]
             )
-            # Should handle encoding errors gracefully
-            self.assertIsNotNone(result.output)
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.assertIn(ROMAN, result.output.lower())
 
-    def test_interrupted_processing(self):
-        """Test handling of interrupted processing."""
-        # This would ideally test KeyboardInterrupt handling
-        # For now, we test that basic operations are atomic
-        result = indicate.hindi2english("हिंदी")
-        self.assertEqual(result.lower(), "hindi")
+    def test_undecodable_bytes_produce_a_clean_error_not_a_traceback(self):
+        with self.runner.isolated_filesystem():
+            with open("corrupted.txt", "wb") as handle:
+                handle.write(b"\xff\xfe\x00\x00")
+            result = self.runner.invoke(
+                cli, ["transliterate", "--from", "hindi", "--input", "corrupted.txt"]
+            )
+        # Whatever it does, it must not surface a decode traceback.
+        self.assertNotIsInstance(result.exception, UnicodeDecodeError)
 
-    def test_path_traversal_protection(self):
-        """Test protection against path traversal attacks."""
-        # Test with suspicious file paths
-        suspicious_paths = [
-            "../../../etc/passwd",
-            "..\\..\\windows\\system32",
-            "/etc/shadow",
-        ]
-
-        for path in suspicious_paths:
-            with self.subTest(path=path):
-                result = self.runner.invoke(cli, ["hindi2english", "--input", path])
-                # Should fail safely, not crash
-                self.assertIsNotNone(result)
-
-    def test_resource_exhaustion_protection(self):
-        """Test protection against resource exhaustion."""
-        # Test with many concurrent operations (simplified)
-        results = []
-        for i in range(10):
-            try:
-                result = indicate.hindi2english(f"हिंदी{i}")
-                results.append(result)
-            except Exception as e:
-                # Should handle gracefully
-                self.assertIsInstance(e, Exception)
-
-        # At least some should succeed
-        self.assertTrue(len(results) > 0)
-
-    def test_invalid_unicode_handling(self):
-        """Test handling of invalid Unicode sequences."""
-        # Test with various problematic Unicode
-        problematic_inputs = [
-            "\ud800",  # Lone surrogate
-            "\udc00",  # Lone surrogate
-            "हिंदी\ud800test",  # Mixed valid/invalid
-        ]
-
-        for text in problematic_inputs:
-            with self.subTest(text=repr(text)):
-                try:
-                    result = indicate.hindi2english(text)
-                    self.assertIsInstance(result, str)
-                except Exception as e:
-                    # Should handle Unicode errors gracefully
-                    self.assertIsInstance(e, (UnicodeError, ValueError))
-
-    def test_cli_error_messages(self):
-        """Test that CLI provides helpful error messages."""
-        # Test with non-existent input file
+    def test_a_missing_input_file_names_the_file(self):
         result = self.runner.invoke(
-            cli, ["hindi2english", "--input", "nonexistent.txt"]
+            cli, ["transliterate", "--input", "nonexistent.txt"]
         )
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("nonexistent.txt", result.output)
+
+    def test_writing_over_the_input_is_refused_and_the_input_survives(self):
+        # This is the property the guard exists for: not that it errors, but
+        # that the source file is still there afterwards.
+        with self.runner.isolated_filesystem():
+            with open("same.txt", "w", encoding="utf-8") as handle:
+                handle.write(HINDI)
+            result = self.runner.invoke(
+                cli,
+                [
+                    "transliterate",
+                    "--from",
+                    "hindi",
+                    "--input",
+                    "same.txt",
+                    "--output",
+                    "same.txt",
+                ],
+            )
+            with open("same.txt", encoding="utf-8") as handle:
+                after = handle.read()
         self.assertNotEqual(result.exit_code, 0)
-        self.assertTrue(len(result.output) > 0)  # Should have error message
+        self.assertEqual(after, HINDI)
 
-    def test_api_error_consistency(self):
-        """Test that API errors are consistent across different entry points."""
-        # Test with None input
-        error_inputs = [None, 123, []]
+    def test_reading_an_arbitrary_path_is_deliberate(self):
+        # There is no input-path sandbox and there should not be: a CLI that
+        # cannot read the file you name is broken. Output paths *are* guarded
+        # (see the test above). Recorded here so the absence is a decision.
+        result = self.runner.invoke(
+            cli, ["transliterate", "--input", "../../../etc/passwd"]
+        )
+        # Either the file does not exist (2) or it is not Indic text (1).
+        self.assertIn(result.exit_code, (1, 2))
 
-        for invalid_input in error_inputs:
-            with self.subTest(input=invalid_input):
-                # All API entry points should handle invalid input similarly
-                errors = []
 
-                try:
-                    indicate.hindi2english(invalid_input)
-                except Exception as e:
-                    errors.append(type(e))
+@pytest.mark.needs_weights
+class TestBatchInvariants(unittest.TestCase):
+    def test_a_long_input_preserves_word_count_and_order(self):
+        # The flatten/reassemble in transliterate_batch is the thing that can
+        # break here; "it returned a str" would not notice.
+        words = 1000
+        out = hi(" ".join([HINDI] * words))
+        parts = out.split(" ")
+        self.assertEqual(len(parts), words)
+        self.assertEqual(set(parts), {ROMAN})
 
-                try:
-                    HindiToEnglish.transliterate(invalid_input)
-                except Exception as e:
-                    errors.append(type(e))
+    def test_single_and_batch_agree(self):
+        texts = [HINDI, f"{HINDI} {HINDI}", "", "   "]
+        self.assertEqual([hi(t) for t in texts], hi_batch(texts))
 
-                # Should either all succeed or all fail with similar errors
-                if errors:
-                    self.assertTrue(len(set(errors)) <= 2)  # Allow some variation
+    def test_a_long_multiword_input_completes_and_stays_aligned(self):
+        # Decoding is hard-bounded by an input-adaptive cap, so this terminates.
+        text = " ".join([HINDI] * 20 + ["ZZZQQ"] * 5)
+        out = hi(text)
+        self.assertEqual(len(out.split(" ")), 25)
 
-    def test_timeout_handling(self):
-        """Test handling of very long inputs."""
-        # Decoding is hard-bounded by max_length_output (no runaway possible),
-        # so a long multi-word input should complete and return a string.
-        complex_input = "हिंदी भाषा एक अत्यधिक जटिल और समृद्ध भाषा है " * 20
 
-        try:
-            result = indicate.hindi2english(complex_input)
-            # Should either complete or timeout gracefully
-            self.assertIsInstance(result, str)
-        except Exception as e:
-            # If timeout occurs, should be handled gracefully
-            self.assertIsInstance(e, Exception)
+@pytest.mark.needs_weights
+class TestInvalidInput(unittest.TestCase):
+    def test_the_exception_types_are_exact(self):
+        with self.assertRaises(TypeError):
+            hi(None)
+        for bad in (123, [], {}):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                hi(bad)
 
-    def test_system_resource_availability(self):
-        """Test behavior when system resources are constrained."""
-        # Test that basic operations still work under normal conditions
-        result = indicate.hindi2english("हिंदी")
-        self.assertEqual(result.lower(), "hindi")
+    def test_a_non_string_inside_a_batch_becomes_empty_not_a_crash(self):
+        # _split tolerates non-strings; pin that rather than leaving it to luck.
+        self.assertEqual(hi_batch([None, HINDI]), ["", ROMAN])
 
-        # Test multiple sequential operations
-        for _i in range(5):
-            result = indicate.hindi2english("हिंदी")
-            self.assertEqual(result.lower(), "hindi")
+    def test_lone_surrogates_do_not_desynchronise_a_batch(self):
+        # The zip(..., strict=True) in resolve_words would raise if a bad input
+        # changed the word count, so this is the assertion that matters.
+        texts = ["\ud800", HINDI, "हिंदी\ud800test"]
+        out = hi_batch(texts)
+        self.assertEqual(len(out), len(texts))
+        self.assertEqual(out[1], ROMAN)
+
+
+@pytest.mark.needs_weights
+class TestRepeatability(unittest.TestCase):
+    def test_the_same_input_gives_the_same_answer(self):
+        first = hi(HINDI)
+        for _ in range(5):
+            self.assertEqual(hi(HINDI), first)
 
 
 if __name__ == "__main__":

@@ -78,3 +78,32 @@ Held-out-own is the cleanest comparison (IndicXlit never trained on our
 electoral/affidavit names). Reproduce the baseline with `baseline_indicxlit.py`
 (isolated env) + `score_preds.py`, or the full breakdown with `compare.py`.
 `oos_eval.py` reports held-out accuracy on the training corpus itself.
+
+Every eval script passes `engine=("model",)`, so these numbers are the model alone.
+With the lookup backend in the chain they would partly measure the table's memory of the
+corpus, which is not what a model benchmark should report.
+
+## Lookup table
+
+```bash
+python training/build_lookup.py --lang punjabi        # -> indicate/data/<lang>_to_english/lookup.tsv.gz
+python training/build_lookup.py --lang hindi --eval-clean   # excludes eval-set source words
+python training/bench_lookup.py --lang punjabi        # latency, coverage, cold start
+python training/seam_check.py  --lang punjabi         # does splicing table + model output show?
+```
+
+The table answers known words before the decoder sees them. It is rebuilt from
+the committed corpora and is byte-identical on a rebuild, so a change in the
+output means a change in the corpus or in the build rule.
+
+| | keys | roll token mass | ties left to the model |
+|---|---|---|---|
+| Punjabi (`data/punjabi.csv.gz`) | 286,546 | 99.12% | 109 |
+| Hindi (`data/hindi.csv.gz`) | 209,925 | — | 25,199 |
+
+Hindi drops 10.7% of its keys because its corpus is phrase-level: positional
+alignment gives one attestation per pair, so `मुंबई` is attested once each as
+`mumbai`, `mumabi`, `mumba` and `mumbaikar`. Guessing among those cost more than
+it gained, so a tie is not answered at all. Use `--eval-clean` to build a table
+with every eval-set source word withheld; `tests/test_build_lookup.py` asserts
+no Dakshina test word survives in it.

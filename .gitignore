@@ -32,3 +32,17 @@ data/eval/
 data/*_train_v2.csv.gz
 # Model weights are hosted on HF and lazy-downloaded; tokenizer JSONs stay tracked
 indicate/data/*/saved_weights/
+# Lookup tables likewise: they derive from data/hindi.csv.gz (which blends
+# CC-BY-NC pairs) and data/punjabi.csv.gz (from the restricted roll deposit),
+# neither of which is redistributable in an MIT wheel. Build with
+# training/build_lookup.py, or let the loader fetch them from HF.
+indicate/data/*/lookup*.tsv.gz
+
+# Gazetteer build outputs (regenerate with gazetteer/README.md)
+gazetteer/build/
+
+# Sphinx HTML output
+docs/_build/
+
+# Provider batch checkpoints: runtime state with real batch/file ids
+*.batchstate.json

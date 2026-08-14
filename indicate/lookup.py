@@ -210,7 +210,10 @@ class Lookup:
                     if not tab or not latin or not key:
                         continue  # malformed body line
                     table[key] = latin
-        except (OSError, EOFError, gzip.BadGzipFile) as exc:
+        # UnicodeDecodeError belongs here with the rest: a file that is valid
+        # gzip but invalid UTF-8 raises it mid-iteration, and letting that
+        # escape kills the model fallback for a failure of the optional table.
+        except (OSError, EOFError, gzip.BadGzipFile, UnicodeDecodeError) as exc:
             logger.debug(f"lookup table unavailable at {path}: {exc}")
             return None
 

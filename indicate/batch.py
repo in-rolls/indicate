@@ -547,6 +547,33 @@ def submit_transliteration_batches(
         seen.add(token)
         todo.append(token)
 
+    if "llm" not in engine:
+        # A chain with no `llm` is a local-only probe -- engine=("lookup",) is
+        # the documented "is my corpus already covered?" question. Submitting
+        # its misses to a provider answers a question nobody asked and bills for
+        # it, so resolve locally and stop. Ahead of _make_transliterator, which
+        # would otherwise demand an API key for a run that needs none.
+        local = _resolve_locally(todo, source_lang, target_lang, engine) if todo else {}
+        if local:
+            _append_resolved(checkpoint_path, local)
+        logger.info(
+            "engine=%s has no llm; answered %d of %d token(s) locally, "
+            "submitted nothing",
+            ",".join(engine),
+            len(local),
+            len(todo),
+        )
+        return BatchState(
+            provider=provider or "none",
+            model=model or "none",
+            source_lang=source_lang,
+            target_lang=target_lang,
+            group_size=group_size,
+            temperature=temperature,
+            use_few_shot=use_few_shot,
+            jobs=[],
+        )
+
     transliterator = _make_transliterator(
         source_lang, target_lang, provider, model, api_key, temperature
     )

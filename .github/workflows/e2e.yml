@@ -13,6 +13,10 @@ name: e2e
 on:
   push:
     branches: [master]
+    # Tags too, or the `live-hf` job below -- guarded on refs/tags/ -- is
+    # unreachable, and the Hugging Face contract check never runs on the one
+    # event it exists for. It had never run.
+    tags: ["v*"]
   pull_request:
   schedule:
     # The HF contract can break without anyone touching this repo.

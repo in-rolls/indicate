@@ -195,7 +195,7 @@ def transliterate(
         input_name = getattr(input_file, "name", None)
         input_path = Path(input_name) if input_name and input_name != "-" else None
         if output_file is not None:
-            validate_file_paths(input_path, output_file)
+            validate_file_paths(input_path, output_file, create_dirs=not dry_run)
 
         lines = _read_input(text, input_file)
         if not lines:

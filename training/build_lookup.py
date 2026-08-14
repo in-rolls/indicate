@@ -38,6 +38,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import os
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -48,6 +49,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from gazetteer.plausibility import aksharas  # noqa: E402
 from indicate.lookup import FORMAT_VERSION, LOOKUP_FILE, lookup_key  # noqa: E402
 from indicate.normalize import NORMALIZER_VERSION, latin_form  # noqa: E402
+from indicate.resources import DATA_DIR_ENV  # noqa: E402
 
 #: Most Latin characters one akshara can justify. The corpus 99.9th percentile
 #: is 4.0; above it are alignment failures, not spellings (``हैं`` -> ``ghana``).
@@ -273,7 +275,14 @@ def main(argv: list[str] | None = None) -> int:
         withheld = before - len(table)
 
     name = LOOKUP_FILE if not args.eval_clean else "lookup.eval-clean.tsv.gz"
-    out = args.out or (REPO_ROOT / "indicate" / "data" / spec["subdir"] / name)
+    # Write where the loader will look. With INDICATE_DATA_DIR exported, an
+    # installed package reads from there, so defaulting to it here is what makes
+    # `pip install` + `build_lookup.py` a working two-step instead of producing
+    # a file inside a checkout that site-packages never opens.
+    data_dir = os.environ.get(DATA_DIR_ENV)
+    default_root = Path(data_dir) if data_dir else REPO_ROOT / "indicate" / "data"
+    out = args.out or (default_root / spec["subdir"] / name)
+    out.parent.mkdir(parents=True, exist_ok=True)
     meta = {
         "indicate-lookup": str(FORMAT_VERSION),
         "normalizer": str(NORMALIZER_VERSION),

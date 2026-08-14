@@ -75,6 +75,23 @@ def test_a_misspelled_backend_is_caught_before_any_submission(
         )
 
 
+def test_a_chain_without_llm_never_submits_anything(no_table, tmp_path):
+    # engine=("lookup",) is the documented "is my corpus already covered?"
+    # probe. It used to answer the hits from the table and then submit every
+    # miss to a paid provider, which is the opposite of what the chain says.
+    # litellm is left unpatched deliberately: reaching it at all is the defect,
+    # so any submission attempt fails loudly rather than being absorbed.
+    resolved = batch_mod.submit_transliteration_batches(
+        [SINGH, "ZZZQQ"],
+        "punjabi",
+        "english",
+        checkpoint_path=tmp_path / "probe.jsonl",
+        engine=("lookup",),
+    )
+    assert not batch_mod._state_path(tmp_path / "probe.jsonl").exists()
+    assert resolved.jobs == []
+
+
 def test_detection_looks_past_a_run_of_blank_inputs():
     # Blank entries are explicitly supported and come back as "". Sampling the
     # first 50 *positions* rather than the first 50 *non-blank* texts meant a
@@ -83,6 +100,37 @@ def test_detection_looks_past_a_run_of_blank_inputs():
     out = indicate.transliterate_batch(texts)
     assert out[-1] == "namaste"
     assert out[:50] == [""] * 50
+
+
+def test_a_table_that_is_not_utf8_disables_itself_instead_of_raising(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    # Valid gzip, invalid UTF-8 -- the decode error surfaces during iteration,
+    # not at open(), so it sat outside the caught set and escaped
+    # LookupBackend.resolve, taking the model fallback down with it.
+    import gzip
+
+    bad = tmp_path / "lookup.tsv.gz"
+    bad.write_bytes(gzip.compress(b"#normalizer\t1\n\xff\xfe\tsingh\n"))
+
+    lookup_mod.clear_cache()
+    monkeypatch.setattr("indicate.lookup.local_data_path", lambda subdir, rel: str(bad))
+    assert lookup_mod.Lookup.load(PA.subdir) is None
+
+
+def test_dry_run_does_not_create_the_output_directory(tmp_path):
+    from click.testing import CliRunner
+
+    from indicate.cli import cli
+
+    missing = tmp_path / "no" / "such" / "dir"
+    result = CliRunner().invoke(
+        cli,
+        ["transliterate", SINGH, "--output", str(missing / "out.txt"), "--dry-run"],
+    )
+    assert result.exit_code == 0, result.output
+    # "Would write" and then a directory on disk is not a dry run.
+    assert not missing.exists()
 
 
 def test_status_is_not_ready_when_only_half_the_weights_are_present(

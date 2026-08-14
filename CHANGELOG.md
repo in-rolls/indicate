@@ -40,6 +40,17 @@
 - A failing LLM call declines rather than raising, so `("lookup", "llm", "model")`
   degrades to local decoding.
 - `python -m indicate` works, not only the installed `indicate` console script.
+- **`INDICATE_DATA_DIR`** — a directory searched before the packaged one, for
+  both lookup tables and weights. Without it an installed package could only
+  read from `site-packages/indicate/data/` while `training/build_lookup.py`
+  wrote into a checkout, so the documented "build your own table" instruction
+  ended at a file the package would never open. The builder now writes there
+  too, making it a working two-step:
+
+  ```bash
+  export INDICATE_DATA_DIR=~/.local/share/indicate
+  uv run --group train python training/build_lookup.py --lang punjabi
+  ```
 
 ### Fixed
 
@@ -80,6 +91,22 @@
 - Three test-infrastructure false greens: a failed `uv build`, a failed wheel
   install, and a deleted Hugging Face revision each turned into a skip, so the
   jobs added to catch exactly those failures could pass while they happened.
+- **A chain with no `llm` still submitted to a paid provider.**
+  `engine=("lookup",)` — the documented "is my corpus already covered?" probe —
+  answered the hits from the table and then sent every miss to the provider.
+  It now resolves locally and submits nothing.
+- A lookup table that is valid gzip but invalid UTF-8 raised out of
+  `LookupBackend.resolve` instead of disabling itself, taking the model
+  fallback down with it.
+- `--dry-run --output missing/dir/out.txt` created `missing/dir/`. A command
+  that promises to write nothing now writes nothing.
+- The `live-hf` job was unreachable: `e2e.yml` had no `tags:` trigger, so the
+  job guarded on `refs/tags/` had never run — including the Hugging Face
+  contract check that exists to catch a missing release asset.
+- `gazetteer/harvest_wikidata.py` paged SPARQL results with `LIMIT`/`OFFSET`
+  and no `ORDER BY`, which can duplicate or skip rows between pages.
+- Tests can no longer reach a real provider: `tests/conftest.py` replaces every
+  provider credential with an obvious fake for the whole suite.
 
 ### Testing
 

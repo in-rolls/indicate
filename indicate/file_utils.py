@@ -159,12 +159,17 @@ class BatchProgress:
             self.progress_file.unlink()
 
 
-def validate_file_paths(input_path: Path | None, output_path: Path | None) -> None:
+def validate_file_paths(
+    input_path: Path | None, output_path: Path | None, *, create_dirs: bool = True
+) -> None:
     """Validate input and output file paths for safety.
 
     Args:
         input_path: Input file path.
         output_path: Output file path.
+        create_dirs: Create a missing output directory as part of validating it.
+            Pass ``False`` for ``--dry-run``, which promises to write nothing
+            and must not leave a directory behind to prove it thought about it.
 
     Raises:
         ValueError: If paths are invalid or dangerous.
@@ -191,6 +196,11 @@ def validate_file_paths(input_path: Path | None, output_path: Path | None) -> No
         # Check if output directory is writable
         output_dir = output_path.parent
         if not output_dir.exists():
+            if not create_dirs:
+                # Nothing more to check: an absent directory cannot be probed
+                # for writability, and creating one to find out is the mutation
+                # a dry run is promising not to make.
+                return
             try:
                 output_dir.mkdir(parents=True, exist_ok=True)
             except OSError as e:

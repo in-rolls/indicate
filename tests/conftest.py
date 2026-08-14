@@ -182,6 +182,40 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:
     write("  Tests needing them were skipped. Use --require-artifacts to fail instead.")
 
 
+#: Provider credentials that must never be visible to a test.
+_PROVIDER_KEYS = (
+    "OPENAI_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "GOOGLE_API_KEY",
+    "GEMINI_API_KEY",
+)
+
+
+@pytest.fixture(autouse=True)
+def no_real_provider_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Replace real API keys with an obvious fake, for every test.
+
+    This is not hygiene, it is damage control that was earned. A test invoked
+    ``submit_transliteration_batches`` to assert it rejects a malformed engine
+    chain. On the machine it was written on a real ``OPENAI_API_KEY`` was
+    exported, the rejection did not yet happen early enough, and the call
+    submitted two genuine batch jobs to a real account -- then wrote their ids
+    into a checkpoint file in the repository root, which was committed.
+
+    Mocking the provider in each test is not sufficient protection, because the
+    tests that need mocking are exactly the ones nobody realised could reach the
+    network. Removing the credential removes the capability.
+
+    Tests that genuinely need a key set one themselves with ``monkeypatch``,
+    which still works and is visible in the test that does it.
+
+    Args:
+        monkeypatch: pytest's environment patcher.
+    """
+    for name in _PROVIDER_KEYS:
+        monkeypatch.setenv(name, "not-a-real-key-see-conftest")
+
+
 @pytest.fixture
 def runner() -> CliRunner:
     """A Click test runner."""

@@ -59,12 +59,24 @@ which is ours to redistribute under MIT. Build it from a checkout in a few
 seconds:
 
 ```bash
+export INDICATE_DATA_DIR=~/.local/share/indicate     # where your tables live
 uv run --group train python training/build_lookup.py --lang hindi
 uv run --group train python training/build_lookup.py --lang punjabi
 ```
 
-Without it nothing breaks — `lookup` declines every word and `model` answers
-them. `indicate languages` reports which backends are live on your machine.
+`INDICATE_DATA_DIR` is where the builder writes and where an installed package
+looks first. Without it the table lands inside the checkout, which a
+`pip install`ed copy in `site-packages` will never read. Keep it exported and
+`indicate languages` flips that row from `unavailable` to `ready`:
+
+```
+Direction                 Backend   Status
+punjabi -> english        lookup    ready
+                          model     ready
+```
+
+Without a table nothing breaks — `lookup` declines every word and `model`
+answers them.
 
 ## 🎯 Usage
 

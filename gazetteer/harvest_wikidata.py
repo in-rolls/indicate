@@ -61,7 +61,13 @@ _QUERY_TEMPLATE = """SELECT DISTINCT ?item ?native ?en WHERE {{
   ?item rdfs:label ?native . FILTER(lang(?native) = "{lang}")
   ?item rdfs:label ?en . FILTER(lang(?en) = "en")
 }}
+ORDER BY ?item
 LIMIT {limit} OFFSET {offset}"""
+# ORDER BY is load-bearing, not tidiness: SPARQL guarantees no row order without
+# it, so paging with LIMIT/OFFSET over an unordered result can return the same
+# row on two pages and never return another. That silently changes what the
+# corpus contains between runs, which is fatal for something whose whole claim
+# is reproducible provenance.
 
 
 def build_query(lang: str, entity: str, *, limit: int, offset: int) -> str:

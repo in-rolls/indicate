@@ -24,6 +24,8 @@ import indicate.lookup as lookup_mod
 from indicate.languages import ON_DEMAND, PAIRS, READY, status
 from indicate.transliterator import DECODER_FILE, ENCODER_FILE
 
+from . import conftest
+
 PA = PAIRS[("punjabi", "english")]
 SINGH = "ਸਿੰਘ"
 KAUR = "ਕੌਰ"
@@ -175,6 +177,57 @@ def test_dry_run_never_reaches_a_backend(monkeypatch: pytest.MonkeyPatch, tmp_pa
         result = CliRunner().invoke(cli, args)
         assert result.exit_code == 0, (args, result.output)
         assert "Would write" in result.output, args
+
+
+@pytest.mark.needs_lookup
+def test_language_aliases_work_on_the_local_batch_path(tmp_path):
+    # PAIRS is keyed on canonical names, and the llm path normalizes for free
+    # via IndicLLMTransliterator -- so "pa"/"en", which are documented aliases,
+    # resolved nothing locally while the *paid* path handled them fine.
+    if batch_mod._resolve_locally([SINGH], "punjabi", "english", ("lookup",)) == {}:
+        pytest.skip("punjabi table not built")
+    assert batch_mod._resolve_locally([SINGH], "pa", "en", ("lookup",)) == {
+        SINGH: "singh"
+    }
+    # An unknown name is a miss, not a crash.
+    assert batch_mod._resolve_locally([SINGH], "klingon", "en", ("lookup",)) == {}
+
+
+@pytest.mark.needs_lookup
+def test_the_local_only_driver_needs_no_api_key(tmp_path, monkeypatch):
+    # transliterate_tokens_batched called _make_transliterator before reaching
+    # the no-llm guard, so a local-only probe died on "No LLM provider
+    # detected" before it ever consulted the table.
+    # Every one of them, including GEMINI_API_KEY. Leaving one behind lets
+    # provider detection succeed and the test passes without exercising the
+    # guard at all -- which is exactly what it did on the first attempt.
+    for name in conftest._PROVIDER_KEYS:
+        monkeypatch.delenv(name, raising=False)
+    out = batch_mod.transliterate_tokens_batched(
+        [SINGH, "ZZZQQ"],
+        "punjabi",
+        "english",
+        checkpoint_path=tmp_path / "probe.jsonl",
+        engine=("lookup",),
+    )
+    if not out:
+        pytest.skip("punjabi table not built")
+    assert out == {SINGH: "singh"}
+
+
+def test_cli_detection_looks_past_leading_blank_lines(runner, text_file, tmp_path):
+    # Same defect as the API one, in the other entry point: blank lines are
+    # preserved deliberately, so sampling the first 50 *positions* left
+    # detection with nothing but blanks.
+    from indicate.cli import cli
+
+    src = text_file("\n" * 50 + "ਸਿੰਘ\n")
+    out = tmp_path / "o.txt"
+    result = runner.invoke(
+        cli, ["transliterate", "--input", str(src), "--output", str(out)]
+    )
+    assert result.exit_code == 0, result.output
+    assert out.read_text(encoding="utf-8").strip().endswith("singh")
 
 
 def test_status_is_not_ready_when_only_half_the_weights_are_present(

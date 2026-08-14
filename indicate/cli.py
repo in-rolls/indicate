@@ -20,6 +20,7 @@ from __future__ import annotations
 import sys
 import time
 from importlib import metadata
+from itertools import islice
 from pathlib import Path
 from typing import IO, Any
 
@@ -202,7 +203,12 @@ def transliterate(
             click.echo("No text to transliterate.", err=True)
             sys.exit(1)
 
-        src, tgt = resolve_pair(source, target, " ".join(lines[:50]))
+        # First 50 *non-blank* lines, not first 50 lines: blank lines are
+        # preserved on purpose, so a file that opens with 50 of them would
+        # otherwise give detection nothing to work with. Same rule as
+        # transliterate_batch.
+        sample = " ".join(islice((ln for ln in lines if ln.strip()), 50))
+        src, tgt = resolve_pair(source, target, sample)
 
         if dry_run:
             # Before _run, not after. Downstream of the backend a "dry" run has

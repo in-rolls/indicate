@@ -177,7 +177,12 @@ def _resolve_locally(
         normalize_engine,
         resolve_words,
     )
-    from .languages import PAIRS, UnsupportedPairError
+    from .languages import (
+        PAIRS,
+        UnknownLanguageError,
+        UnsupportedPairError,
+    )
+    from .languages import normalize as normalize_language
 
     # Validate the whole chain before anything else, and let it raise. A typo
     # like ("lookpu", "llm") used to be swallowed as "no local backend here",
@@ -187,6 +192,16 @@ def _resolve_locally(
 
     prefix = list(itertools.takewhile(lambda name: name != "llm", engine))
     if not prefix or not tokens:
+        return {}
+
+    # Normalized here, not at the call sites, so every caller gets it. PAIRS is
+    # keyed on canonical names, and the llm path gets normalization for free
+    # from IndicLLMTransliterator -- so without this the documented aliases
+    # ("pa", "en") silently resolved nothing while the paid path handled them.
+    try:
+        source_lang = normalize_language(source_lang)
+        target_lang = normalize_language(target_lang)
+    except UnknownLanguageError:
         return {}
 
     pair = PAIRS.get((source_lang, target_lang))
@@ -754,6 +769,22 @@ def transliterate_tokens_batched(
     checkpoint_path = Path(checkpoint_path)
     unique_tokens = [token for token in dict.fromkeys(tokens) if token]
     start = time.time()
+
+    if "llm" not in engine:
+        # Handled entirely here, before _make_transliterator. Guarding only the
+        # requeue further down still demanded an API key on the way in, so a
+        # documented local-only probe failed with "No LLM provider detected".
+        submit_transliteration_batches(
+            unique_tokens,
+            source_lang,
+            target_lang,
+            checkpoint_path=checkpoint_path,
+            group_size=group_size,
+            use_few_shot=use_few_shot,
+            temperature=temperature,
+            engine=engine,
+        )
+        return _load_resolved(checkpoint_path)
 
     transliterator = _make_transliterator(
         source_lang, target_lang, provider, model, api_key, temperature

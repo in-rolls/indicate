@@ -62,6 +62,24 @@
   reachable only when an input path was resolved, which the new CLI did not do.
 - The model backend declines instead of crashing when the weights cannot be
   obtained at all, not only when decoding fails.
+- **`indicate.batch` aborted on a stock install.** With the default
+  `("lookup", "llm")` chain and no lookup table — the state every installed user
+  is in — the local prefix reported itself unavailable and
+  `submit_transliteration_batches` raised instead of submitting to the provider.
+  An unavailable local prefix now means "nothing resolved locally", which is
+  what the `llm` suffix is for.
+- **A typo in the engine chain billed you.** `("lookpu", "llm")` was swallowed
+  as "no local backend here", after which every token was submitted to a paid
+  provider. The whole chain is validated before any local resolution, so a
+  misspelling costs an exception rather than money.
+- `transliterate_batch` raised `UnsupportedPairError` on input it supports when
+  the first 50 entries were blank: detection sampled the first 50 *positions*
+  rather than the first 50 non-blank texts.
+- `indicate languages` reported the model `ready` when only one of the two
+  weight files was present, e.g. after an interrupted download.
+- Three test-infrastructure false greens: a failed `uv build`, a failed wheel
+  install, and a deleted Hugging Face revision each turned into a skip, so the
+  jobs added to catch exactly those failures could pass while they happened.
 
 ### Testing
 

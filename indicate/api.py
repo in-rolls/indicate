@@ -17,6 +17,7 @@ the order it was given.
 
 from __future__ import annotations
 
+from itertools import islice
 from typing import TYPE_CHECKING
 
 from .engine import Candidates, build, resolve_words
@@ -96,7 +97,13 @@ def transliterate_batch(
             the chain supports it.
     """
     texts = list(texts)
-    sample = " ".join(t for t in texts[:50] if isinstance(t, str) and t)
+    # Cap the number of *non-blank* texts sampled, not the number of positions
+    # inspected. Blank entries are supported and come back as "", so slicing
+    # texts[:50] meant a batch opening with 50 blanks had nothing to detect
+    # from and raised UnsupportedPairError on input it fully supports.
+    sample = " ".join(
+        islice((t for t in texts if isinstance(t, str) and t.strip()), 50)
+    )
     src, tgt = resolve_pair(source, target, sample)
     pair = PAIRS.get((src, tgt))
     if pair is None:

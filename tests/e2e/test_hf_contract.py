@@ -29,10 +29,21 @@ pytestmark = pytest.mark.live
 def repo_files() -> set[str]:
     """Every file in the pinned model repo revision."""
     hub = pytest.importorskip("huggingface_hub")
+    from huggingface_hub.errors import (
+        RepositoryNotFoundError,
+        RevisionNotFoundError,
+    )
+
     try:
         return set(hub.list_repo_files(HF_REPO, revision=HF_REVISION))
+    except (RepositoryNotFoundError, RevisionNotFoundError) as exc:
+        # The whole point of this test. A deleted repo or a revision that no
+        # longer exists means every fresh install is broken; skipping here
+        # would let the release path go green on exactly that.
+        pytest.fail(f"{HF_REPO}@{HF_REVISION} is gone: {exc}")
     except Exception as exc:  # pragma: no cover - network dependent
-        pytest.skip(f"could not list {HF_REPO}@{HF_REVISION}: {exc}")
+        # Only genuine unreachability is environmental.
+        pytest.skip(f"could not reach {HF_REPO}: {exc}")
 
 
 def test_the_pinned_revision_exists(repo_files: set[str]):

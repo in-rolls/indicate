@@ -43,3 +43,6 @@ gazetteer/build/
 
 # Sphinx HTML output
 docs/_build/
+
+# Provider batch checkpoints: runtime state with real batch/file ids
+*.batchstate.json

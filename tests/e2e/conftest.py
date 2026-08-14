@@ -55,7 +55,10 @@ def built_wheel(tmp_path_factory: pytest.TempPathFactory) -> Path:
         check=False,
     )
     if proc.returncode != 0:
-        pytest.skip(f"uv build failed (needs git metadata):\n{proc.stderr}")
+        # fail, not skip: a wheel that will not build is the exact packaging
+        # regression this suite exists to catch, and skipping turns the whole
+        # dependent suite green. Only a missing `uv` is environmental.
+        pytest.fail(f"uv build --wheel failed:\n{proc.stderr}")
     wheels = list(out.glob("*.whl"))
     assert len(wheels) == 1, f"expected one wheel, got {wheels}"
     return wheels[0]
@@ -80,7 +83,7 @@ def built_sdist(tmp_path_factory: pytest.TempPathFactory) -> Path:
         check=False,
     )
     if proc.returncode != 0:
-        pytest.skip(f"uv build --sdist failed:\n{proc.stderr}")
+        pytest.fail(f"uv build --sdist failed:\n{proc.stderr}")
     archives = list(out.glob("*.tar.gz"))
     assert len(archives) == 1, f"expected one sdist, got {archives}"
     return archives[0]
@@ -122,7 +125,7 @@ def wheel_venv(built_wheel: Path, tmp_path_factory: pytest.TempPathFactory) -> P
         check=False,
     )
     if proc.returncode != 0:
-        pytest.skip(f"could not install the wheel offline:\n{proc.stderr}")
+        pytest.fail(f"could not install the built wheel:\n{proc.stderr}")
     return venv
 
 

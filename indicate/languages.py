@@ -24,6 +24,7 @@ backend that costs money.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 #: Backends that can appear in an engine chain, in no particular order.
@@ -267,6 +268,22 @@ ON_DEMAND = "downloads on first use"
 UNAVAILABLE = "unavailable"
 
 
+def _worst(states: Iterable[str]) -> str:
+    """Return the least-available status among several assets.
+
+    A backend needs every one of its files, so a pair is only as ready as its
+    weakest part.
+
+    Args:
+        states: Per-asset statuses.
+
+    Returns:
+        The least available of them.
+    """
+    rank = {READY: 0, ON_DEMAND: 1, UNAVAILABLE: 2}
+    return max(states, key=lambda state: rank.get(state, 2), default=UNAVAILABLE)
+
+
 def _asset_status(subdir: str, rel: str, downloadable: bool) -> str:
     """Classify one asset without touching the network.
 
@@ -318,7 +335,7 @@ def status(source: str, target: str) -> dict[str, str]:
         Backend name to status, for the backends that support the direction.
     """
     from .lookup import DOWNLOADABLE, LOOKUP_FILE
-    from .transliterator import ENCODER_FILE
+    from .transliterator import DECODER_FILE, ENCODER_FILE
 
     out: dict[str, str] = {}
     pair = PAIRS.get((source, target))
@@ -328,7 +345,13 @@ def status(source: str, target: str) -> dict[str, str]:
                 pair.subdir, LOOKUP_FILE, pair.subdir in DOWNLOADABLE
             )
         if supports(source, target, "model"):
-            out["model"] = _asset_status(pair.subdir, ENCODER_FILE, downloadable=True)
+            # Both weight files, not just the encoder. An interrupted download
+            # leaves one of them behind, and reporting `ready` there sends the
+            # user to a backend that raises the moment it loads.
+            out["model"] = _worst(
+                _asset_status(pair.subdir, rel, downloadable=True)
+                for rel in (ENCODER_FILE, DECODER_FILE)
+            )
     if supports(source, target, "llm"):
         out["llm"] = "needs an API key"
     return out

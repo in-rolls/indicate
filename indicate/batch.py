@@ -171,21 +171,43 @@ def _resolve_locally(
     Returns:
         Token to romanization for the tokens answered locally.
     """
+    from .engine import (
+        BackendsUnavailableError,
+        build,
+        normalize_engine,
+        resolve_words,
+    )
+    from .languages import PAIRS, UnsupportedPairError
+
+    # Validate the whole chain before anything else, and let it raise. A typo
+    # like ("lookpu", "llm") used to be swallowed as "no local backend here",
+    # after which every token was submitted to a paid provider. A misspelling
+    # must cost an exception, not money.
+    normalize_engine(engine)
+
     prefix = list(itertools.takewhile(lambda name: name != "llm", engine))
     if not prefix or not tokens:
         return {}
-    from .engine import build, resolve_words
-    from .languages import PAIRS
 
     pair = PAIRS.get((source_lang, target_lang))
     if pair is None:
         return {}
     try:
         backends = build(prefix, pair)
-    except Exception as exc:
+    except UnsupportedPairError as exc:
         logger.debug(f"no local backend for {source_lang}->{target_lang}: {exc}")
         return {}
-    resolved = resolve_words(tokens, backends)
+    try:
+        resolved = resolve_words(tokens, backends)
+    except BackendsUnavailableError as exc:
+        # Nothing local could run -- no table built, no weights. That is fatal
+        # for a bare `transliterate()` call, which has nothing else to try, but
+        # here the `llm` suffix is exactly the fallback. Resolve nothing and let
+        # every token be submitted. Without this, the default ("lookup", "llm")
+        # chain aborted the whole batch on any machine with no lookup table,
+        # which is every installed user.
+        logger.debug(f"no local backend could run, submitting everything: {exc}")
+        return {}
     return {
         token: candidates[0][0]
         for token, candidates in zip(tokens, resolved, strict=True)

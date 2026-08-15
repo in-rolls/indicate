@@ -59,7 +59,12 @@ class EngineChain(click.ParamType):
 
     name = "engine"
 
-    def convert(self, value, param, ctx) -> tuple[str, ...]:
+    def convert(
+        self,
+        value: Any,
+        param: click.Parameter | None,
+        ctx: click.Context | None,
+    ) -> tuple[str, ...]:
         """Parse and validate ``lookup,model`` into a tuple.
 
         Args:

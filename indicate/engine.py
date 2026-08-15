@@ -36,7 +36,7 @@ about 4x on cold start and is asserted in ``tests/test_lookup_bench.py``.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from .languages import BACKENDS, Pair, UnsupportedPairError, supports
 from .logging import get_logger
@@ -44,6 +44,7 @@ from .logging import get_logger
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from .llm_indic import IndicLLMTransliterator
     from .rerank import Reranker
 
 logger = get_logger()
@@ -216,9 +217,9 @@ class LLMBackend:
         self,
         pair: Pair,
         *,
-        transliterator=None,
+        transliterator: IndicLLMTransliterator | None = None,
         group_size: int = 25,
-        **client_kwargs,
+        **client_kwargs: Any,
     ) -> None:
         """Bind to one language pair.
 
@@ -312,8 +313,8 @@ def build(
     *,
     beam: int = 5,
     reranker: Reranker | None = None,
-    llm=None,
-    **llm_kwargs,
+    llm: IndicLLMTransliterator | None = None,
+    **llm_kwargs: Any,
 ) -> list[Backend]:
     """Construct the backends for a chain, without running any of them.
 

@@ -112,12 +112,12 @@ console script is not on `PATH`.
 ```python
 import indicate
 
-indicate.transliterate("राजशेखर चिंतालपति")            # "rajshekhar chintalpati"
-indicate.transliterate("ਰਵਿ", source="punjabi")        # "ravi"
-indicate.transliterate("नमस्ते", n=3)                  # 3 ranked candidates
-indicate.transliterate_batch(["हिंदी", "मुंबई"])        # ["hindi", "mumbai"]
+indicate.transliterate("राजशेखर चिंतालपति")  # "rajshekhar chintalpati"
+indicate.transliterate("ਰਵਿ", source="punjabi")  # "ravi"
+indicate.transliterate("नमस्ते", n=3)  # 3 ranked candidates
+indicate.transliterate_batch(["हिंदी", "मुंबई"])  # ["hindi", "mumbai"]
 
-indicate.supported()          # {(source, target): (backends...)}
+indicate.supported()  # {(source, target): (backends...)}
 ```
 
 ### Choosing the engine
@@ -218,9 +218,11 @@ with checkpointing, and answers what it can locally first:
 from indicate.batch import transliterate_tokens_batched
 
 pairs = transliterate_tokens_batched(
-    tokens, "punjabi", "english",
+    tokens,
+    "punjabi",
+    "english",
     checkpoint_path="run.jsonl",
-    engine=("lookup", "llm"),      # default; ("lookup","model","llm") goes further
+    engine=("lookup", "llm"),  # default; ("lookup","model","llm") goes further
 )
 ```
 

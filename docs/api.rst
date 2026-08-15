@@ -133,3 +133,10 @@ Data resolution
 .. automodule:: indicate.resources
    :members:
    :show-inheritance:
+
+Logging
+-------
+
+.. automodule:: indicate.logging
+   :members:
+   :show-inheritance:

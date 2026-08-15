@@ -18,7 +18,7 @@ the order it was given.
 from __future__ import annotations
 
 from itertools import islice
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .engine import Candidates, build, resolve_words
 from .languages import PAIRS, resolve_pair
@@ -27,6 +27,7 @@ from .transliterator import DEFAULT_BEAM
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from .llm_indic import IndicLLMTransliterator
     from .rerank import Reranker
 
 
@@ -69,8 +70,8 @@ def transliterate_batch(
     n: int = 1,
     beam: int | None = None,
     reranker: Reranker | None = None,
-    llm=None,
-    **llm_kwargs,
+    llm: IndicLLMTransliterator | None = None,
+    **llm_kwargs: Any,
 ) -> list[str] | list[list[str]]:
     """Transliterate many texts at once.
 
@@ -88,13 +89,14 @@ def transliterate_batch(
         llm: An existing ``IndicLLMTransliterator`` to reuse.
         **llm_kwargs: Provider settings for the ``llm`` backend.
 
+    Propagates ``UnsupportedPairError`` from :func:`~indicate.languages.resolve_pair`
+    when the direction cannot be detected, or when no backend in the chain
+    supports it. It is documented here rather than under ``Raises`` because
+    nothing in this body raises it directly.
+
     Returns:
         One result per input: a ``str`` each when ``n == 1``, else a list of up
         to ``n`` candidates each.
-
-    Raises:
-        UnsupportedPairError: If the direction cannot be detected, or no backend in
-            the chain supports it.
     """
     texts = list(texts)
     # Cap the number of *non-blank* texts sampled, not the number of positions
@@ -152,8 +154,8 @@ def transliterate(
     n: int = 1,
     beam: int | None = None,
     reranker: Reranker | None = None,
-    llm=None,
-    **llm_kwargs,
+    llm: IndicLLMTransliterator | None = None,
+    **llm_kwargs: Any,
 ) -> str | list[str]:
     """Transliterate one text.
 
@@ -168,13 +170,15 @@ def transliterate(
         llm: An existing ``IndicLLMTransliterator`` to reuse.
         **llm_kwargs: Provider settings for the ``llm`` backend.
 
+    Propagates ``UnsupportedPairError`` from :func:`transliterate_batch` when the
+    direction is unsupported or undetectable; it is not raised here.
+
     Returns:
         A ``str`` when ``n == 1``; a list of up to ``n`` candidates otherwise.
 
     Raises:
         TypeError: If ``text`` is ``None``.
         ValueError: If ``text`` is not a string.
-        UnsupportedPairError: If the direction is unsupported or undetectable.
     """
     if text is None:
         raise TypeError("Input cannot be None")

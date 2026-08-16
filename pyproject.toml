@@ -156,6 +156,8 @@ exclude_lines = [
 [tool.pyright]
 include = ["indicate", "gazetteer"]
 typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"
 
 [tool.hatch.version]
 source = "uv-dynamic-versioning"

@@ -46,7 +46,7 @@ export GOOGLE_API_KEY=your-key
 ```bash
 pip install indicate
 # No API key needed. The PyTorch weights are downloaded once from Hugging Face
-# (soodoku/indicate) on first transliterate and cached locally; tokenizers ship
+# (gojiberries/indicate) on first transliterate and cached locally; tokenizers ship
 # in the wheel. After the first run it works fully offline.
 ```
 

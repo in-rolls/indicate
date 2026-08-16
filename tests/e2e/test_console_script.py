@@ -106,7 +106,7 @@ class TestInfoCommand:
     ):
         proc = run(script, "info", env=clean_env, cwd=tmp_path)
         assert proc.returncode == 0, proc.stderr
-        assert "soodoku/indicate" in proc.stdout
+        assert "gojiberries/indicate" in proc.stdout
         assert "hindi -> english" in proc.stdout
 
 

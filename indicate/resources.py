@@ -15,8 +15,8 @@ import os
 from importlib.resources import files
 
 #: Hugging Face repo holding per-language directories.
-HF_REPO = "soodoku/indicate"
-HF_REVISION = "v0.7.0"
+HF_REPO = "gojiberries/indicate"
+HF_REVISION = "bfe94dbf0daae72e8aada28ba6dd435a213cc365"
 
 
 #: Environment variable naming a directory to look in before the package.

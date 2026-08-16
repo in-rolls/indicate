@@ -22,42 +22,42 @@ dev-install: ## Install package with development dependencies
 	pre-commit install
 
 test: ## Run tests
-	pytest
+	uv run pytest
 
 test-cov: ## Run tests with coverage
-	pytest --cov=indicate --cov-report=html --cov-report=term
+	uv run pytest --cov=indicate --cov-report=html --cov-report=term
 
 test-pkg: ## Test only the shipped package (skip gazetteer/, which does not ship)
-	pytest tests --ignore=tests/gazetteer
+	uv run pytest tests --ignore=tests/gazetteer
 
 test-contract: ## What must pass on a fresh clone with no network
-	HF_HUB_OFFLINE=1 pytest tests --ignore=tests/gazetteer
+	HF_HUB_OFFLINE=1 uv run pytest tests --ignore=tests/gazetteer
 
 test-artifacts: ## Fail instead of skipping when weights or tables are missing
-	pytest tests --require-artifacts
+	uv run pytest tests --require-artifacts
 
 test-e2e: ## Build the wheel, install it, run the console script
-	pytest -m "e2e and not live"
+	uv run pytest -m "e2e and not live"
 
 test-live: ## Reach Hugging Face and check the model repo has what we claim
-	pytest -m live
+	uv run pytest -m live
 
 build-lookup: ## Build both lookup tables from the committed corpora
 	uv run --group train python training/build_lookup.py --lang hindi
 	uv run --group train python training/build_lookup.py --lang punjabi
 
 lint: ## Run linter
-	ruff check .
+	uv run ruff check .
 
 format: ## Format code
-	ruff format .
-	ruff check --fix .
+	uv run ruff format .
+	uv run ruff check --fix .
 
 type-check: ## Run type checker
-	pyright
+	uv run pyright
 
 docs: ## Build documentation
-	cd docs && make clean && make html
+	uv run sphinx-build -W --keep-going -b html docs docs/_build/html
 
 docs-serve: ## Serve documentation locally
 	cd docs/build/html && python -m http.server 8000
@@ -69,7 +69,3 @@ upload: ## Upload to PyPI
 	uv publish
 
 ci: lint type-check test ## Run CI checks
-
-# Legacy aliases for compatibility
-install-dev: dev-install ## Legacy alias for dev-install
-typecheck: type-check ## Legacy alias for type-check

@@ -4,7 +4,8 @@ Marked ``live`` and deselected by default, so an ordinary ``pytest`` run never
 touches the network. Run it with ``-m live``, on a schedule and on release tags.
 
 This exists because the answer was **no**. ``indicate/lookup.py`` resolves
-``<pair>/lookup.tsv.gz`` from ``soodoku/indicate@v0.7.0``; that path 404s for
+``<pair>/lookup.tsv.gz`` from the pinned ``gojiberries/indicate`` revision;
+that path 404s for
 both languages while the weights return 200. Every installed user got an empty
 string from ``engine=["lookup"]``, silently, and nothing in the suite noticed
 because every test ran against a checkout that had the tables locally.

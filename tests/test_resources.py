@@ -81,17 +81,16 @@ def test_a_missing_file_is_requested_by_its_exact_repo_path(no_local):
     # Positional args and the revision keyword, spelled out. A rename on either
     # side of this join is a 404 that only shows up at runtime.
     download.assert_called_once_with(
-        "soodoku/indicate",
+        "gojiberries/indicate",
         "hindi_to_english/saved_weights/encoder.safetensors",
         revision=HF_REVISION,
     )
 
 
-def test_the_revision_is_pinned_to_a_tag(no_local):
-    # A moving ref means an upstream commit can change what users get without
-    # any release here. Tags are immutable; branches are not.
-    assert HF_REVISION not in {"main", "master", "HEAD", None}
-    assert HF_REPO == "soodoku/indicate"
+def test_the_revision_is_an_immutable_commit(no_local):
+    assert len(HF_REVISION) == 40
+    assert set(HF_REVISION) <= set("0123456789abcdef")
+    assert HF_REPO == "gojiberries/indicate"
 
 
 def test_an_override_repo_and_revision_are_honoured(no_local):

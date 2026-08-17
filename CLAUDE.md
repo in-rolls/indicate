@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Indicate is a Python package for transliterating Indic text to English using PyTorch-based encoder-decoder models with attention. It ships local models for **Hindi** (Devanagari) and **Punjabi** (Gurmukhi), plus an LLM backend for other languages. The local models are custom-trained neural networks with pre-trained weights.
+Indicate is a Python package for transliterating Indic text to English using PyTorch-based encoder-decoder models with attention. It ships local models for **Hindi** (Devanagari) and **Punjabi** (Gurmukhi), a downloadable word lookup for **Bengali** (Eastern Nagari, including Assamese letters), and an LLM backend for other languages. The local models are custom-trained neural networks with pre-trained weights.
 
 ## Development Commands
 

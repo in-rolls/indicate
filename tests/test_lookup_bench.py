@@ -93,6 +93,7 @@ def _rss_mb() -> float:
 
 @unittest.skipUnless(_table_available(), "punjabi lookup table not built")
 class TestLookupPerformance(unittest.TestCase):
+    @pytest.mark.no_cover
     def test_table_loads_quickly_and_cheaply(self):
         clear_cache()
         before = _rss_mb()

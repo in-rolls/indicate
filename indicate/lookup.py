@@ -74,23 +74,22 @@ FORMAT_VERSION = 1
 #:
 #: Membership means "look for it", not "it is there". Use :data:`DOWNLOADABLE`
 #: for the stronger claim.
-SHIPPED = frozenset({"hindi_to_english", "punjabi_to_english"})
+SHIPPED = frozenset({"bengali_to_english", "hindi_to_english", "punjabi_to_english"})
 
 #: Directories whose table can be fetched from the model repo.
 #:
-#: **Empty, and deliberately so.** The tables are derived from
+#: The Bengali table is derived entirely from LLM-labeled Eastern Nagari words
+#: and is published with the model assets. The Hindi and Punjabi tables are
+#: deliberately absent: they are derived from
 #: ``data/hindi.csv.gz`` (which blends CC-BY-NC IIT Bombay pairs) and
 #: ``data/punjabi.csv.gz`` (from the IRB-restricted electoral-roll deposit), so
 #: they are not ours to redistribute. Build one locally in a few seconds::
 #:
 #:     uv run --group train python training/build_lookup.py --lang punjabi
 #:
-#: Until this is non-empty, a fresh install has no lookup backend, and saying so
-#: here is what stops :func:`indicate.supported` advertising one. It also saves
-#: every fresh install a guaranteed-404 round trip per language per process.
-#: ``tests/e2e/test_hf_contract.py`` asserts that whatever is listed here is
-#: actually present in the repo.
-DOWNLOADABLE: frozenset[str] = frozenset()
+#: ``tests/e2e/test_hf_contract.py`` asserts that every listed table is present
+#: at the pinned repository revision, and that no unlisted table is published.
+DOWNLOADABLE: frozenset[str] = frozenset({"bengali_to_english"})
 
 _HEADER_PREFIX = "#"
 _CACHE: dict[str, Lookup | None] = {}
@@ -286,8 +285,8 @@ class Lookup:
         if subdir not in SHIPPED:
             _CACHE[subdir] = None
             return None
-        # A local build is the normal case. Only reach for the network when the
-        # table is actually published, which today is never -- see DOWNLOADABLE.
+        # A local build is the normal case for restricted corpora. Only reach
+        # for the network when the table is explicitly published.
         local = local_data_path(subdir, LOOKUP_FILE)
         path = (
             local

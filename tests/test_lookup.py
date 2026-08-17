@@ -4,8 +4,9 @@ import gzip
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
-from indicate.lookup import Lookup
+from indicate.lookup import LOOKUP_FILE, Lookup, clear_cache
 
 GURMUKHI_SINGH = "ਸਿੰਘ"
 GURMUKHI_KAUR = "ਕੌਰ"
@@ -113,6 +114,9 @@ class TestGet(unittest.TestCase):
 
 
 class TestCaching(unittest.TestCase):
+    def tearDown(self):
+        clear_cache()
+
     def test_load_caches_by_subdir(self):
         first = Lookup.load("punjabi_to_english")
         second = Lookup.load("punjabi_to_english")
@@ -120,6 +124,28 @@ class TestCaching(unittest.TestCase):
 
     def test_load_of_an_unknown_subdir_is_none(self):
         self.assertIsNone(Lookup.load("no_such_language_to_english"))
+
+    def test_bengali_table_is_resolved_from_the_pinned_asset_repo(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            table_path = _write_table(Path(tmp), (("বৰুৱা", "barua"),))
+            with (
+                patch("indicate.lookup.local_data_path", return_value="/missing"),
+                patch(
+                    "indicate.lookup.try_resolve_data", return_value=str(table_path)
+                ) as resolve,
+            ):
+                table = Lookup.load("bengali_to_english")
+
+        self.assertEqual(table.get("বৰুৱা"), "barua")
+        resolve.assert_called_once_with("bengali_to_english", LOOKUP_FILE)
+
+    def test_restricted_tables_do_not_attempt_a_download(self):
+        with (
+            patch("indicate.lookup.local_data_path", return_value="/missing"),
+            patch("indicate.lookup.try_resolve_data") as resolve,
+        ):
+            self.assertIsNone(Lookup.load("hindi_to_english"))
+        resolve.assert_not_called()
 
 
 if __name__ == "__main__":

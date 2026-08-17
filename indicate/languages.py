@@ -11,10 +11,11 @@ Two things live here and nothing else:
 **Languages** -- name, native spelling, script and ISO code, with the aliases
 callers actually type (``hi``, ``hin``, ``pan``).
 
-**Pairs** -- the ``(source, target)`` combinations a local seq2seq model exists
-for, and the files that model is made of. Replacing the old class-per-pair
-(``HindiToEnglish``, ``PunjabiToEnglish``) with data means adding a language is
-a dict entry rather than a module.
+**Pairs** -- the ``(source, target)`` combinations with local assets, and the
+directory that holds them. Some pairs have both a lookup and a seq2seq model;
+Bengali has a lookup only. Replacing the old class-per-pair
+(``HindiToEnglish``, ``PunjabiToEnglish``) with data means adding an asset is a
+registry entry rather than a module.
 
 Support is per *backend*, not global: ``("tamil", "english")`` is answerable by
 an LLM and by nothing else on this machine. :func:`supports` says so, and
@@ -128,7 +129,7 @@ INDIC_SCRIPTS = frozenset(SCRIPT_RANGES) - {"latin"}
 
 @dataclass(frozen=True, slots=True)
 class Pair:
-    """A direction a local seq2seq model exists for.
+    """A direction with at least one local asset.
 
     Attributes:
         source: Source language name.
@@ -139,6 +140,7 @@ class Pair:
         target_vocab: Target tokenizer filename.
         max_input: Longest source sequence the weights were trained for.
         max_output: Longest output sequence to decode.
+        has_model: Whether seq2seq weights exist for this direction.
     """
 
     source: str
@@ -148,6 +150,7 @@ class Pair:
     target_vocab: str
     max_input: int
     max_output: int
+    has_model: bool = True
 
     @property
     def key(self) -> tuple[str, str]:
@@ -158,6 +161,16 @@ class Pair:
 PAIRS: dict[tuple[str, str], Pair] = {
     pair.key: pair
     for pair in (
+        Pair(
+            source="bengali",
+            target="english",
+            subdir="bengali_to_english",
+            input_vocab="",
+            target_vocab="",
+            max_input=0,
+            max_output=0,
+            has_model=False,
+        ),
         Pair(
             source="hindi",
             target="english",
@@ -179,6 +192,10 @@ PAIRS: dict[tuple[str, str], Pair] = {
         ),
     )
 }
+
+#: Directions backed by seq2seq weights. Other entries in :data:`PAIRS` are
+#: lookup-only and must never make the model loader ask for nonexistent files.
+MODEL_PAIRS = frozenset(pair.key for pair in PAIRS.values() if pair.has_model)
 
 
 class UnknownLanguageError(ValueError):
@@ -381,7 +398,7 @@ def supports(source: str, target: str, backend: str) -> bool:
     if pair is None:
         return False
     if backend == "model":
-        return True
+        return pair.has_model
     if backend == "lookup":
         return _lookup_available(pair)
     return False

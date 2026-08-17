@@ -1,9 +1,11 @@
-"""Build the word-level lookup table from a committed training corpus.
+"""Build the word-level lookup table from a configured training corpus.
 
 Run::
 
     uv run python training/build_lookup.py --lang punjabi
     uv run python training/build_lookup.py --lang hindi
+    uv run python training/build_lookup.py --lang bengali \
+        --corpus ../eroll_transliteration/data/bengali.csv.gz
     uv run python training/build_lookup.py --lang punjabi --eval-clean
 
 Writes ``indicate/data/<lang>_to_english/lookup.tsv.gz``.
@@ -38,6 +40,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import hashlib
 import os
 import sys
 from collections import Counter, defaultdict
@@ -57,6 +60,14 @@ MAX_RATIO = 4.0
 
 #: Per-language source corpus, its columns, and the convention it speaks.
 CORPORA = {
+    "bengali": {
+        "path": None,
+        "source": "eroll_transliteration/data/bengali.csv.gz",
+        "native": "bengali",
+        "latin": "english",
+        "convention": "roll",
+        "subdir": "bengali_to_english",
+    },
     "punjabi": {
         "path": "data/punjabi.csv.gz",
         "native": "punjabi",
@@ -241,6 +252,15 @@ def write_table(path: Path, table: dict[str, str], meta: dict[str, str]) -> int:
     return path.stat().st_size
 
 
+def sha256_file(path: Path) -> str:
+    """Return the SHA-256 digest of ``path`` without loading it into memory."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def main(argv: list[str] | None = None) -> int:
     """Build and write one language's lookup table.
 
@@ -253,6 +273,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--lang", required=True, choices=sorted(CORPORA))
     parser.add_argument(
+        "--corpus",
+        type=Path,
+        default=None,
+        help=(
+            "external corpus path; required when the language corpus is not "
+            "committed here"
+        ),
+    )
+    parser.add_argument(
         "--eval-clean",
         action="store_true",
         help="exclude eval-set source words, for honest benchmarking",
@@ -261,7 +290,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     spec = CORPORA[args.lang]
-    corpus = REPO_ROOT / spec["path"]
+    corpus = args.corpus
+    if corpus is None and spec["path"] is not None:
+        corpus = REPO_ROOT / spec["path"]
+    if corpus is None:
+        print(f"{args.lang}: --corpus is required", file=sys.stderr)
+        return 1
     if not corpus.is_file():
         print(f"missing corpus: {corpus}", file=sys.stderr)
         return 1
@@ -288,7 +322,8 @@ def main(argv: list[str] | None = None) -> int:
         "normalizer": str(NORMALIZER_VERSION),
         "lang": args.lang,
         "convention": spec["convention"],
-        "source": spec["path"],
+        "source": spec.get("source") or spec["path"],
+        "source_sha256": sha256_file(corpus),
         "entries": str(len(table)),
         "eval_clean": "1" if args.eval_clean else "0",
     }

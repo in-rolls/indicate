@@ -27,7 +27,7 @@ import sys
 
 import pytest
 
-from indicate.languages import PAIRS
+from indicate.languages import PAIRS, supports
 from indicate.lookup import LOOKUP_FILE
 from indicate.resources import local_data_path
 from indicate.transliterator import ENCODER_FILE
@@ -41,7 +41,10 @@ def _artifacts_in_source_tree() -> list[str]:
     """Return the artifact paths a checkout provides, which env vars cannot hide."""
     present = []
     for pair in PAIRS.values():
-        for rel in (LOOKUP_FILE, ENCODER_FILE):
+        rels = [LOOKUP_FILE]
+        if supports(*pair.key, "model"):
+            rels.append(ENCODER_FILE)
+        for rel in rels:
             path = local_data_path(pair.subdir, rel)
             if os.path.exists(path):
                 present.append(path)

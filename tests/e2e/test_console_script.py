@@ -81,11 +81,11 @@ class TestLanguagesCommand:
         proc = run(script, "languages", env=clean_env, cwd=tmp_path)
         assert proc.returncode == 0, proc.stderr
 
-    def test_it_reports_the_lookup_backend_as_unavailable_here(
+    def test_it_distinguishes_downloadable_and_locally_built_lookups(
         self, script: Path, clean_env, tmp_path: Path
     ):
-        # This venv has no lookup table and none can be fetched. Advertising it
-        # as available is what made engine=["lookup"] return empty strings.
+        # This venv has no lookup tables. Bengali is published and can be
+        # fetched later; the restricted Hindi and Punjabi tables cannot.
         proc = run(script, "languages", env=clean_env, cwd=tmp_path)
         assert proc.returncode == 0, proc.stderr
         # Table rows only: the trailing hint also mentions the word "lookup".
@@ -96,7 +96,12 @@ class TestLanguagesCommand:
             if line.rstrip().endswith(("ready", "unavailable", "first use"))
         ]
         assert rows, proc.stdout
-        assert all(row.endswith("unavailable") for row in rows), rows
+        by_language = {
+            row.split(" ->", 1)[0].strip(): row for row in rows if " ->" in row
+        }
+        assert by_language["bengali"].endswith("downloads on first use")
+        assert by_language["hindi"].endswith("unavailable")
+        assert by_language["punjabi"].endswith("unavailable")
         assert "build_lookup.py" in proc.stdout
 
 
@@ -106,7 +111,7 @@ class TestInfoCommand:
     ):
         proc = run(script, "info", env=clean_env, cwd=tmp_path)
         assert proc.returncode == 0, proc.stderr
-        assert "soodoku/indicate" in proc.stdout
+        assert "gojiberries/indicate" in proc.stdout
         assert "hindi -> english" in proc.stdout
 
 

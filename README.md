@@ -50,13 +50,17 @@ pip install indicate
 # in the wheel. After the first run it works fully offline.
 ```
 
-### For the lookup backend (optional, and worth it):
+### For the lookup backend:
 
-The word table **does not ship in the wheel and is not downloadable**. It is
-derived from `data/hindi.csv.gz` (which blends CC-BY-NC IIT Bombay pairs) and
+The Bengali word table downloads from the pinned model-assets repository on
+first use and is then cached. It is compiled from a shared, LLM-labeled
+electoral-name corpus into one deterministic native-to-Latin lookup; the
+multi-million-row source CSV is not duplicated in this repository or package.
+
+Hindi and Punjabi tables are different: they derive from
+`data/hindi.csv.gz` (which blends CC-BY-NC IIT Bombay pairs) and
 `data/punjabi.csv.gz` (from a restricted electoral-roll deposit), neither of
-which is ours to redistribute under MIT. Build it from a checkout in a few
-seconds:
+which is ours to redistribute under MIT. Build those from a checkout:
 
 ```bash
 export INDICATE_DATA_DIR=~/.local/share/indicate     # where your tables live
@@ -71,12 +75,15 @@ looks first. Without it the table lands inside the checkout, which a
 
 ```
 Direction                 Backend   Status
+bengali -> english        lookup    downloads on first use
+                          llm       needs an API key
 punjabi -> english        lookup    ready
                           model     ready
 ```
 
-Without a table nothing breaks — `lookup` declines every word and `model`
-answers them.
+Without a Hindi or Punjabi table nothing breaks: `lookup` declines every word
+and `model` answers them. Bengali is lookup-only locally, so an unavailable
+table is reported as an error instead of silently returning blank text.
 
 ## 🎯 Usage
 
@@ -90,6 +97,9 @@ indicate transliterate "राजशेखर चिंतालपति"
 
 indicate transliterate "ਰਵਿ ਸ਼ਰਮਾ"
 # ravi sharma
+
+indicate transliterate "বৰুৱা"
+# barua
 
 # Devanagari carries several languages and detection picks Hindi, so say it
 # explicitly when it is not. Marathi has no local model — hence --engine llm
@@ -291,8 +301,8 @@ indicate transliterate --input names.txt --engine lookup
 
 | | `lookup` | `model` | `llm` |
 |---|---|---|---|
-| **Directions** | Hindi, Punjabi → English | Hindi, Punjabi → English | 12+ languages, any Indic pair |
-| **Setup** | build a table (one command) | none | API key |
+| **Directions** | Bengali, Hindi, Punjabi → English | Hindi, Punjabi → English | 12+ languages, any Indic pair |
+| **Setup** | Bengali downloads; build Hindi/Punjabi | none | API key |
 | **Speed** | 10,937 tok/s end to end | 258 tok/s | network-bound |
 | **Cost** | free | free | per API call |
 | **Offline** | ✅ | ✅ | ❌ |

@@ -35,8 +35,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from indicate.languages import PAIRS  # noqa: E402
-from indicate.lookup import LOOKUP_FILE  # noqa: E402
+from indicate.languages import PAIRS, supports  # noqa: E402
+from indicate.lookup import DOWNLOADABLE, LOOKUP_FILE  # noqa: E402
 from indicate.resources import HF_REPO, HF_REVISION, local_data_path  # noqa: E402
 from indicate.transliterator import DECODER_FILE, ENCODER_FILE  # noqa: E402
 
@@ -104,9 +104,11 @@ def _missing() -> dict[str, list[str]]:
     """Return the missing artifacts, keyed by kind, as language names."""
     missing: dict[str, list[str]] = {"lookup": [], "weights": []}
     for pair in PAIRS.values():
-        if not lookup_available(pair.subdir):
+        if pair.subdir not in DOWNLOADABLE and not lookup_available(pair.subdir):
             missing["lookup"].append(pair.source)
-        if not weights_available(pair.subdir):
+        if supports(pair.source, pair.target, "model") and not weights_available(
+            pair.subdir
+        ):
             missing["weights"].append(pair.source)
     return missing
 

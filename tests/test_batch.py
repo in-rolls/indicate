@@ -132,6 +132,9 @@ class TestSubmit(BatchTestBase):
         # The submitted JSONL request carries those tokens.
         (file_requests,) = fake.input_files.values()
         self.assertEqual(_tokens_in_request(file_requests[0]), ["ਰਾਜ", "ਪੰਜਾਬ", "ਸਿੰਘ"])
+        body = file_requests[0]["body"]
+        self.assertIn("max_completion_tokens", body)
+        self.assertNotIn("max_tokens", body)
 
     def test_submit_skips_already_resolved(self):
         # Pre-populate the resolved checkpoint with one token.

@@ -71,6 +71,25 @@ data/<lang>.csv.gz (ours) + Aksharantar train/val (download)
   → training/train.py --rebuild-vocab → indicate/data/<lang>_to_english/
 ```
 
+**Bengali lookup**
+```
+shared LLM-labeled Eastern Nagari elector-name corpus
+  → deterministic, deduplicated lookup.tsv.gz
+  → pinned Hugging Face model-assets revision
+```
+
+Only the compiled lookup is published. The multi-million-row source CSV stays
+in `eroll_transliteration` with its collection and provenance pipeline; it is
+not copied into this repository or package. The compiled table header records
+the source corpus's SHA-256 for an exact, independently checkable build link.
+
+Rebuild the published artifact without copying the corpus:
+
+```bash
+uv run --group train python training/build_lookup.py --lang bengali \
+  --corpus ../eroll_transliteration/data/bengali.csv.gz
+```
+
 ## Reproduce / download
 
 ```bash

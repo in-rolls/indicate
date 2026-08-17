@@ -405,6 +405,7 @@ def languages() -> None:
 @cli.command()
 def info() -> None:
     """Show information about the indicate package."""
+    from .languages import supports
     from .resources import HF_REPO, HF_REVISION
     from .transliterator import EMBEDDING_DIM, UNITS, model_for
 
@@ -426,6 +427,8 @@ def info() -> None:
     click.echo()
     click.echo(f"Weights: {HF_REPO}@{HF_REVISION} (Hugging Face; cached on first use)")
     for pair in PAIRS.values():
+        if not supports(pair.source, pair.target, "model"):
+            continue
         present = Path(model_for(pair).weights_dir).exists()
         state = "local copy present" if present else "downloaded on first use"
         click.echo(f"  {pair.source} -> {pair.target}: {state}")

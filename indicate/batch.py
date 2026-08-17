@@ -396,7 +396,7 @@ def _submit_openai_jobs(
                 "model": model,
                 "messages": transliterator.build_group_messages(group, examples),
                 "temperature": temperature,
-                "max_tokens": transliterator.default_max_tokens_for(group),
+                "max_completion_tokens": transliterator.default_max_tokens_for(group),
             },
         }
         for cid, group in custom_id_to_tokens.items()

@@ -6,6 +6,7 @@ import unittest
 
 from indicate.languages import (
     LANGUAGES,
+    MODEL_PAIRS,
     PAIRS,
     SCRIPT_TO_LANGUAGE,
     UnknownLanguageError,
@@ -76,6 +77,8 @@ class TestSupport(unittest.TestCase):
         self.assertTrue(supports("punjabi", "english", "model"))
 
     def test_a_pair_with_no_local_model_does_not(self):
+        self.assertFalse(supports("bengali", "english", "model"))
+        self.assertTrue(supports("bengali", "english", "lookup"))
         self.assertFalse(supports("tamil", "english", "model"))
         self.assertFalse(supports("tamil", "english", "lookup"))
 
@@ -93,7 +96,7 @@ class TestSupport(unittest.TestCase):
         self.assertIn("llm", table[("tamil", "english")])
 
     def test_supported_can_be_restricted_to_one_backend(self):
-        self.assertEqual(set(supported("model")), set(PAIRS))
+        self.assertEqual(set(supported("model")), set(MODEL_PAIRS))
 
 
 class TestResolvePair(unittest.TestCase):

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from indicate.languages import PAIRS
+from indicate.languages import PAIRS, supports
 from indicate.lookup import DOWNLOADABLE, LOOKUP_FILE
 from indicate.resources import HF_REPO, HF_REVISION
 from indicate.transliterator import DECODER_FILE, ENCODER_FILE
@@ -51,7 +51,11 @@ def test_the_pinned_revision_exists(repo_files: set[str]):
     assert repo_files, f"{HF_REPO}@{HF_REVISION} is empty or missing"
 
 
-@pytest.mark.parametrize("pair", list(PAIRS.values()), ids=lambda p: p.subdir)
+@pytest.mark.parametrize(
+    "pair",
+    [pair for pair in PAIRS.values() if supports(*pair.key, "model")],
+    ids=lambda p: p.subdir,
+)
 def test_every_weight_the_loader_requests_is_present(pair, repo_files: set[str]):
     for rel in (ENCODER_FILE, DECODER_FILE):
         assert f"{pair.subdir}/{rel}" in repo_files, (
@@ -62,9 +66,8 @@ def test_every_weight_the_loader_requests_is_present(pair, repo_files: set[str])
 
 @pytest.mark.parametrize("pair", list(PAIRS.values()), ids=lambda p: p.subdir)
 def test_every_lookup_table_the_code_claims_is_present(pair, repo_files: set[str]):
-    # DOWNLOADABLE is the code's claim that a table can be fetched. It is empty
-    # today because the tables are not ours to redistribute; if anything is ever
-    # added to it, this is what checks the upload actually happened.
+    # DOWNLOADABLE is the code's claim that a table can be fetched. This checks
+    # the upload actually happened before a release advertises it.
     if pair.subdir not in DOWNLOADABLE:
         pytest.skip(
             f"{pair.subdir} is not in lookup.DOWNLOADABLE; the package does not "

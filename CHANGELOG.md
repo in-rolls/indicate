@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.0 — 2026-08-16
+
+### Added
+
+- Bengali-to-English is now a local lookup direction, including Eastern Nagari
+  words that use Assamese `ৰ` and `ৱ`. Its compiled `lookup.tsv.gz` downloads
+  from the pinned Hugging Face model-assets revision on first use. The source
+  corpus stays with its collection and provenance pipeline; millions of CSV
+  rows are not duplicated in this repository or the wheel.
+
+### Fixed
+
+- OpenAI Batch requests use `max_completion_tokens`. `max_tokens` is rejected
+  by current models such as `gpt-5.4-mini`, which previously made every request
+  in an otherwise valid batch fail before inference.
+- Lookup-only pairs no longer pretend to have seq2seq weights. Status reporting,
+  artifact checks, and `indicate info` now ask for model files only when the
+  direction actually supports the model backend.
+- Model assets are pinned to an immutable Hugging Face commit rather than a
+  moving branch or tag.
+
 ## 0.8.0 — 2026-08-14
 
 ### Changed — breaking

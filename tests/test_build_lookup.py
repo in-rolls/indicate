@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import csv
+import gzip
+import hashlib
 import sys
+import tempfile
 import unittest
 from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from training.build_lookup import choose, is_implausible
+from indicate.lookup import Lookup
+from training.build_lookup import choose, is_implausible, main
 
 
 class TestPlausibility(unittest.TestCase):
@@ -59,6 +64,44 @@ class TestChoose(unittest.TestCase):
         forward = choose("कुमार", Counter({"kumar": 408, "r": 1}))
         backward = choose("कुमार", Counter({"r": 1, "kumar": 408}))
         self.assertEqual(forward, backward)
+
+
+class TestExternalCorpus(unittest.TestCase):
+    def test_bengali_compiles_without_copying_the_source_corpus(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            corpus = root / "bengali.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(("bengali", "english"))
+                writer.writerow(("বৰুৱা", "barua"))
+            output = root / "lookup.tsv.gz"
+
+            status = main(
+                [
+                    "--lang",
+                    "bengali",
+                    "--corpus",
+                    str(corpus),
+                    "--out",
+                    str(output),
+                ]
+            )
+
+            self.assertEqual(status, 0)
+            table = Lookup.from_path(output)
+            assert table is not None
+            self.assertEqual(table.get("বৰুৱা"), "barua")
+            self.assertEqual(
+                table.meta["source"], "eroll_transliteration/data/bengali.csv.gz"
+            )
+            self.assertEqual(
+                table.meta["source_sha256"],
+                hashlib.sha256(corpus.read_bytes()).hexdigest(),
+            )
+
+    def test_bengali_names_the_missing_external_input(self):
+        self.assertEqual(main(["--lang", "bengali"]), 1)
 
 
 ROOT = Path(__file__).resolve().parent.parent

@@ -3,10 +3,10 @@ revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
-    "python_full_version == '3.14.*' and sys_platform == 'win32'",
     "python_full_version >= '3.15' and sys_platform == 'emscripten'",
-    "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version >= '3.15' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version == '3.14.*' and sys_platform == 'win32'",
+    "python_full_version == '3.14.*' and sys_platform == 'emscripten'",
     "python_full_version == '3.14.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
     "python_full_version < '3.14' and sys_platform == 'win32'",
     "python_full_version < '3.14' and sys_platform == 'emscripten'",
@@ -2023,8 +2023,8 @@ wheels = [
 
 [[package]]
 name = "py-canon"
-version = "1.0.0.post9.dev0+8fec4eb"
-source = { git = "https://github.com/gojiplus/py-canon?rev=v1#8fec4eb16ae8183b24b825c863c4d78c9906afb4" }
+version = "1.1.0"
+source = { git = "https://github.com/gojiplus/py-canon?rev=v1#f756be7a6e4dd0ea2a006c215e39ed2e1e29a412" }
 
 [[package]]
 name = "pyarrow"

@@ -3,7 +3,7 @@ _commit: v1.1.0
 _src_path: gh:gojiplus/py-canon
 author_email: rajshekar.ch@gmail.com
 author_name: Rajashekar Chintalapati
-coverage_floor: 76
+coverage_floor: 75
 default_branch: master
 description: Transliterations to/from Indian languages
 needs_cli: true

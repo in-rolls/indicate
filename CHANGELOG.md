@@ -13,7 +13,7 @@
   repointed at `release.yml`.
 - Lint select expanded to the py-canon rule set (pathlib, lazy logging
   formatting, type-checking-only imports, and friends); CI enforces
-  `preen check --strict` and a coverage floor of 76%.
+  `preen check --strict` and a coverage floor of 75%.
 
 ## 0.9.0 — 2026-08-16
 

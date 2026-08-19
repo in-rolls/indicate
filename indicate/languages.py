@@ -25,8 +25,11 @@ backend that costs money.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 #: Backends that can appear in an engine chain, in no particular order.
 BACKENDS = frozenset({"lookup", "model", "llm"})
@@ -312,11 +315,11 @@ def _asset_status(subdir: str, rel: str, downloadable: bool) -> str:
     Returns:
         One of :data:`READY`, :data:`ON_DEMAND` or :data:`UNAVAILABLE`.
     """
-    import os
+    from pathlib import Path
 
     from .resources import HF_REPO, HF_REVISION, local_data_path
 
-    if os.path.exists(local_data_path(subdir, rel)):
+    if Path(local_data_path(subdir, rel)).exists():
         return READY
     try:
         from huggingface_hub import try_to_load_from_cache

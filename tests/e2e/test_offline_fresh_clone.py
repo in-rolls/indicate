@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -46,7 +47,7 @@ def _artifacts_in_source_tree() -> list[str]:
             rels.append(ENCODER_FILE)
         for rel in rels:
             path = local_data_path(pair.subdir, rel)
-            if os.path.exists(path):
+            if Path(path).exists():
                 present.append(path)
     return present
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Test Punjabi (Gurmukhi) to English transliteration.
 """

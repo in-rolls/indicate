@@ -24,7 +24,6 @@ A terminal summary
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -70,7 +69,7 @@ def _cached_on_hf(subdir: str, rel: str) -> bool:
 
 def _available(subdir: str, rel: str) -> bool:
     """Report whether an asset can be had without the network."""
-    return os.path.exists(local_data_path(subdir, rel)) or _cached_on_hf(subdir, rel)
+    return Path(local_data_path(subdir, rel)).exists() or _cached_on_hf(subdir, rel)
 
 
 def lookup_available(subdir: str) -> bool:

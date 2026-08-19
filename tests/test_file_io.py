@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test file I/O operations for the indicate package.
 """
@@ -50,7 +49,7 @@ class TestFileIO(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0)
 
-            with open(temp_output, encoding="utf-8") as f:
+            with Path(temp_output).open(encoding="utf-8") as f:
                 content = f.read()
             self.assertIn("hindi", content.lower())
         finally:
@@ -84,7 +83,7 @@ class TestFileIO(unittest.TestCase):
             )
             self.assertEqual(result.exit_code, 0)
 
-            with open(temp_output, encoding="utf-8") as f:
+            with Path(temp_output).open(encoding="utf-8") as f:
                 content = f.read()
 
             self.assertIn("gaurav", content.lower())

@@ -27,14 +27,18 @@ meaning "the LLM agrees with itself".
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from gazetteer.phonetic import is_phonetic_match
 from gazetteer.plausibility import is_plausible_pair
-from gazetteer.records import CandidateRow
 from gazetteer.sources import SOURCES
 from indicate.normalize import gaz_key
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from gazetteer.records import CandidateRow
 
 #: Minimum gap between the top two candidates for the winner to be authoritative.
 #: Two reputable sources that disagree is a disagreement, not authority.

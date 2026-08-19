@@ -3,8 +3,9 @@
 The exclusions here are a **license gate**, not a size optimization. Lookup
 tables derive from ``data/hindi.csv.gz`` (which blends CC-BY-NC IIT Bombay
 pairs) and ``data/punjabi.csv.gz`` (from the IRB-restricted electoral-roll
-deposit); neither is redistributable in an MIT wheel. Until now that exclusion
-rested on one line of ``.gitignore``, which hatchling happens to honour. These
+deposit); neither is redistributable in an MIT wheel. The exclusion once
+rested on one line of ``.gitignore``, which the old hatchling backend happened
+to honour; it now lives in ``[tool.uv.build-backend]`` excludes. These tests
 assert it directly, so a build-config change that would ship restricted data
 fails a test rather than reaching PyPI.
 """
@@ -114,6 +115,8 @@ class TestTheGateIsReal:
         # The rule must be in the build config, not inherited from .gitignore,
         # which is one edit away from silently including 6 MB of restricted data.
         text = Path("pyproject.toml").read_text(encoding="utf-8")
-        wheel_section = text.split("[tool.hatch.build.targets.wheel]")[1]
-        assert "saved_weights" in wheel_section
-        assert "lookup*.tsv.gz" in wheel_section
+        backend_section = text.split("[tool.uv.build-backend]")[1]
+        for key in ("source-exclude", "wheel-exclude"):
+            line = next(ln for ln in backend_section.splitlines() if ln.startswith(key))
+            assert "saved_weights" in line
+            assert "lookup*.tsv.gz" in line

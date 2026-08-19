@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class Reranker:

@@ -25,14 +25,17 @@ import argparse
 import csv
 import json
 from collections import Counter
-from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from gazetteer.adjudicate import HIGH, LOW, MEDIUM, Adjudication, adjudicate_all
 from gazetteer.records import CandidateRow, read_rows
 from gazetteer.script import is_language_script
 from gazetteer.sources import bundled_sources
 from indicate.normalize import NORMALIZER_VERSION
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "gazetteer" / "build" / "src"

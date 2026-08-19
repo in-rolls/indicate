@@ -16,13 +16,17 @@ options get checked at all: they have no observable effect on output otherwise.
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
-from click.testing import CliRunner
 
 from indicate.cli import cli
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from pathlib import Path
+
+    from click.testing import CliRunner
 
 #: Deterministic answers, so an assertion names a string rather than a mechanism.
 STUB = {"हिंदी": "hindi", "गौरव": "gaurav", "सूद": "sood"}

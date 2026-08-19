@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 from importlib.resources import files
+from pathlib import Path
 
 #: Hugging Face repo holding per-language directories.
 HF_REPO = "gojiberries/indicate"
@@ -49,13 +50,13 @@ def local_data_path(subdir: str, rel: str) -> str:
     """
     override = os.environ.get(DATA_DIR_ENV)
     if override:
-        candidate = os.path.join(override, subdir, rel)
+        candidate = Path(override) / subdir / rel
         # Only when the file is actually there. A stale or half-populated
         # directory must fall back to the packaged copy rather than shadow it,
         # or one forgotten export bricks an otherwise working install.
-        if os.path.exists(candidate):
-            return candidate
-    return os.path.join(str(files("indicate")), "data", subdir, rel)
+        if candidate.exists():
+            return str(candidate)
+    return str(Path(str(files("indicate"))) / "data" / subdir / rel)
 
 
 def resolve_data(
@@ -73,7 +74,7 @@ def resolve_data(
         A path to the file on disk.
     """
     local = local_data_path(subdir, rel)
-    if os.path.exists(local):
+    if Path(local).exists():
         return local
     from huggingface_hub import hf_hub_download
 

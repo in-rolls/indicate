@@ -343,7 +343,7 @@ def test_status_is_not_ready_when_only_half_the_weights_are_present(
         return "/exists" if rel in present else "/definitely/missing"
 
     monkeypatch.setattr("indicate.resources.local_data_path", only_encoder)
-    monkeypatch.setattr("os.path.exists", lambda p: p == "/exists")
+    monkeypatch.setattr("pathlib.Path.exists", lambda self: str(self) == "/exists")
     monkeypatch.setattr("huggingface_hub.try_to_load_from_cache", lambda *a, **k: None)
 
     # Not READY. It is ON_DEMAND rather than UNAVAILABLE because the missing

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Command line interface.
 
 One transliteration command, because the language and the backend are arguments

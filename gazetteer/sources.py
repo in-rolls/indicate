@@ -32,8 +32,11 @@ break ties, but a candidate cannot reach high confidence on their word alone.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
 
 
 @dataclass(frozen=True, slots=True)

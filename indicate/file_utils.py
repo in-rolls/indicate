@@ -115,7 +115,7 @@ class BatchProgress:
             os.fsync(tmp_file.fileno())
 
         # Atomic rename
-        os.rename(tmp_file.name, self.progress_file)
+        Path(tmp_file.name).rename(self.progress_file)
 
     @classmethod
     def load_progress(cls, progress_file: Path) -> BatchProgress | None:
@@ -124,7 +124,7 @@ class BatchProgress:
             return None
 
         try:
-            with open(progress_file, encoding="utf-8") as f:
+            with progress_file.open(encoding="utf-8") as f:
                 data = json.load(f)
 
             progress = cls(data["total_lines"], Path(data["output_path"]))
@@ -150,7 +150,7 @@ class BatchProgress:
             return progress
 
         except Exception as e:
-            logger.warning(f"Could not load progress file: {e}")
+            logger.warning("Could not load progress file: %s", e)
             return None
 
     def cleanup(self):
@@ -224,15 +224,15 @@ def create_backup(file_path: Path) -> Path | None:
     if not file_path.exists():
         return None
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     backup_path = file_path.with_suffix(f".backup_{timestamp}{file_path.suffix}")
 
     try:
         shutil.copy2(file_path, backup_path)
-        logger.info(f"Created backup: {backup_path}")
+        logger.info("Created backup: %s", backup_path)
         return backup_path
     except Exception as e:
-        logger.warning(f"Could not create backup: {e}")
+        logger.warning("Could not create backup: %s", e)
         return None
 
 
@@ -292,8 +292,8 @@ def _write_file_atomic(
         os.fsync(tmp_file.fileno())
 
     # Atomic rename
-    os.rename(tmp_file.name, output_path)
-    logger.info(f"Safely wrote {len(results)} results to {output_path}")
+    Path(tmp_file.name).rename(output_path)
+    logger.info("Safely wrote %d results to %s", len(results), output_path)
 
 
 def _write_file_direct(
@@ -304,10 +304,10 @@ def _write_file_direct(
     target_lang: str,
 ) -> None:
     """Write file directly (less safe but faster)."""
-    with open(output_path, "w", encoding="utf-8") as f:
+    with output_path.open("w", encoding="utf-8") as f:
         _write_content(f, results, output_format, source_lang, target_lang)
 
-    logger.info(f"Wrote {len(results)} results to {output_path}")
+    logger.info("Wrote %d results to %s", len(results), output_path)
 
 
 def _write_content(
@@ -378,27 +378,26 @@ def read_input_file(input_path: Path) -> list[str]:
     # Check if it's a JSON file with previous results
     if input_path.suffix.lower() == ".json":
         return _read_json_input(input_path)
-    else:
-        return _read_text_input(input_path)
+    return _read_text_input(input_path)
 
 
 def _read_text_input(input_path: Path) -> list[str]:
     """Read plain text input file with robust UTF-8 handling."""
     try:
         # Try UTF-8 first
-        with open(input_path, encoding="utf-8") as f:
+        with input_path.open(encoding="utf-8") as f:
             lines = f.readlines()
     except UnicodeDecodeError:
         try:
             # Fallback to UTF-8 with BOM
-            with open(input_path, encoding="utf-8-sig") as f:
+            with input_path.open(encoding="utf-8-sig") as f:
                 lines = f.readlines()
         except UnicodeDecodeError:
             # Last resort - try with error handling
-            with open(input_path, encoding="utf-8", errors="replace") as f:
+            with input_path.open(encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
                 logger.warning(
-                    f"Some characters in {input_path} could not be decoded properly"
+                    "Some characters in %s could not be decoded properly", input_path
                 )
 
     # Remove BOM if present and normalize line endings
@@ -417,7 +416,7 @@ def _read_json_input(input_path: Path) -> list[str]:
     2. Previous results format: {"results": [...]}
     """
     try:
-        with open(input_path, encoding="utf-8") as f:
+        with input_path.open(encoding="utf-8") as f:
             data = json.load(f)
 
         # Handle simple array format
@@ -435,21 +434,20 @@ def _read_json_input(input_path: Path) -> list[str]:
                     else:
                         texts.append(str(result))
                 return texts
-            elif "texts" in data:
+            if "texts" in data:
                 # Alternative format
                 return list(data["texts"])
-            else:
-                # Assume the values are the texts
-                return list(data.values())
+            # Assume the values are the texts
+            return list(data.values())
 
         # Fallback
         return [str(data)]
 
     except json.JSONDecodeError as e:
-        logger.error(f"Invalid JSON in {input_path}: {e}")
+        logger.error("Invalid JSON in %s: %s", input_path, e)
         raise ValueError(f"Invalid JSON format in {input_path}") from e
     except Exception as e:
-        logger.error(f"Error reading JSON file {input_path}: {e}")
+        logger.error("Error reading JSON file %s: %s", input_path, e)
         raise
 
 

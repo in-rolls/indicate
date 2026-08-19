@@ -18,10 +18,9 @@ this module costs nothing.
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .languages import Pair
 from .logging import get_logger
 from .resources import HF_REPO, HF_REVISION, local_data_path, resolve_data
 
@@ -30,6 +29,7 @@ if TYPE_CHECKING:
 
     from .decoder import Decoder
     from .encoder import Encoder
+    from .languages import Pair
     from .utils import CharTokenizer
 
 logger = get_logger()
@@ -86,7 +86,7 @@ class Seq2SeqModel:
     @property
     def weights_dir(self) -> str:
         """Local weights directory, for display. Weights may live on HF instead."""
-        return os.path.dirname(local_data_path(self.pair.subdir, ENCODER_FILE))
+        return str(Path(local_data_path(self.pair.subdir, ENCODER_FILE)).parent)
 
     def load(self) -> None:
         """Load tokenizers and weights. Idempotent.

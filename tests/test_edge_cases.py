@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test edge cases and error handling for the indicate package.
 """

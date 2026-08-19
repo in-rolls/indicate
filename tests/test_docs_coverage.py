@@ -34,7 +34,7 @@ API_RST = REPO_ROOT / "docs" / "api.rst"
 #: not part of the documented surface, not a way to silence this test.
 UNDOCUMENTED: dict[str, str] = {}
 
-_AUTOMODULE = re.compile(r"^\.\.\s+automodule::\s+indicate\.(\w+)\s*$", re.M)
+_AUTOMODULE = re.compile(r"^\.\.\s+automodule::\s+indicate\.(\w+)\s*$", re.MULTILINE)
 
 
 def _package_modules() -> set[str]:

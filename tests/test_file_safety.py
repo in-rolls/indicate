@@ -6,7 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 from indicate.file_utils import (
     BatchProgress,
@@ -95,7 +95,7 @@ class TestBackupFunctionality(unittest.TestCase):
             self.assertIn("backup_", backup_path.name)
 
             # Content should be preserved
-            with open(backup_path) as f:
+            with Path(backup_path).open() as f:
                 backup_content = f.read()
             self.assertEqual(backup_content, "Original content")
 
@@ -210,7 +210,7 @@ class TestJSONIO(unittest.TestCase):
             )
 
             # Read and validate
-            with open(output_path, encoding="utf-8") as f:
+            with Path(output_path).open(encoding="utf-8") as f:
                 data = json.load(f)
 
             # Check structure
@@ -332,7 +332,7 @@ class TestTextIO(unittest.TestCase):
                 results, output_path, OutputFormat.TEXT, "hindi", "english"
             )
 
-            with open(output_path, encoding="utf-8") as f:
+            with Path(output_path).open(encoding="utf-8") as f:
                 content = f.read()
 
             lines = content.strip().split("\n")
@@ -362,14 +362,14 @@ class TestAtomicWriting(unittest.TestCase):
 
             # Verify file was created and contains expected content
             self.assertTrue(output_path.exists())
-            with open(output_path, encoding="utf-8") as f:
+            with Path(output_path).open(encoding="utf-8") as f:
                 data = json.load(f)
 
             self.assertEqual(len(data["results"]), 1)
             self.assertEqual(data["results"][0]["input_text"], "राज")
             self.assertEqual(data["results"][0]["output_text"], "Raj")
 
-    @patch("builtins.open", new_callable=mock_open)
+    @patch("pathlib.Path.open", autospec=True)
     def test_non_atomic_write(self, mock_file):
         """Test non-atomic write."""
         results = [TransliterationResult(1, "राज", "Raj", "hindi", "english")]
@@ -379,7 +379,8 @@ class TestAtomicWriting(unittest.TestCase):
             results, output_path, OutputFormat.JSON, "hindi", "english", atomic=False
         )
 
-        # Verify file was opened directly
+        # Verify the file was opened directly, at the requested path. autospec
+        # keeps `self` in the call record, so the path stays assertable.
         mock_file.assert_called_once_with(output_path, "w", encoding="utf-8")
 
 
@@ -490,11 +491,11 @@ class TestIntegrationScenarios(unittest.TestCase):
             output_path = Path(tmp_dir) / "output.json"
 
             # Create input file
-            with open(input_path, "w", encoding="utf-8") as f:
+            with Path(input_path).open("w", encoding="utf-8") as f:
                 f.write("राज\nगौरव\nनमस्ते\n")
 
             # Create existing output file (to test backup)
-            with open(output_path, "w", encoding="utf-8") as f:
+            with Path(output_path).open("w", encoding="utf-8") as f:
                 f.write("old content")
 
             # Validate paths (should work)
@@ -523,14 +524,14 @@ class TestIntegrationScenarios(unittest.TestCase):
 
             # Verify output exists and is valid JSON
             self.assertTrue(output_path.exists())
-            with open(output_path, encoding="utf-8") as f:
+            with Path(output_path).open(encoding="utf-8") as f:
                 data = json.load(f)
 
             self.assertEqual(len(data["results"]), 3)
             self.assertEqual(data["results"][0]["output_text"], "Raj")
 
             # Verify backup still exists with old content
-            with open(backup_path, encoding="utf-8") as f:
+            with Path(backup_path).open(encoding="utf-8") as f:
                 backup_content = f.read()
             self.assertEqual(backup_content, "old content")
 

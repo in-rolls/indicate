@@ -1,16 +1,18 @@
 [build-system]
-requires = ["hatchling", "uv-dynamic-versioning"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.12.5,<0.13"]
+build-backend = "uv_build"
 
 [project]
 name = "indicate"
 description = "Transliterations to/from Indian languages"
 readme = "README.md"
+version = "0.9.0"
 authors = [
     {name = "Rajashekar Chintalapati", email = "rajshekar.ch@gmail.com"},
     {name = "Gaurav Sood", email = "gsood07@gmail.com"}
 ]
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -31,7 +33,6 @@ dependencies = [
     "litellm>=1.0.0",  # For LLM-based transliteration
     "google-genai>=1.0",  # native Gemini batch provider (indicate.batch)
 ]
-dynamic = ["version"]
 
 [dependency-groups]
 docs = [
@@ -52,8 +53,11 @@ dev = [
     # this. Without it here, `make type-check` after a plain `uv sync --dev`
     # reports a missing import that has nothing to do with the change in hand.
     # Named individually rather than pulling in the whole train group, which
-    # carries pandas, pyarrow, matplotlib and datasets.
+    # carries pandas, matplotlib and datasets.
     "indic-transliteration>=2.3",
+    # Same reason: gazetteer/mine_frequency.py imports pyarrow.parquet, and
+    # pyright runs against a dev-group sync in CI.
+    "pyarrow>=15",
     { include-group = "test" },
 ]
 test = [
@@ -88,10 +92,18 @@ target-version = "py311"
 
 [tool.ruff.lint]
 allowed-confusables = ["ः", "–"]
-select = ["E", "W", "F", "I", "B", "C4", "UP", "N", "D", "S", "SIM", "T20", "PT", "RUF"]
+external = ["DOC"]
+select = [
+    "E", "W", "F", "I", "B", "C4", "UP", "N", "D", "S", "SIM", "T20", "PT", "RUF",
+    "PTH", "RET", "PIE", "FURB", "PERF", "DTZ", "LOG", "G", "TC", "FLY",
+    "RSE", "SLOT", "FA", "A", "EXE", "ICN", "PGH", "PLE", "ARG", "SLF",
+]
 ignore = [
     "D203",
     "D213",
+    "W191",
+    "D206",
+    "D300",
     # Transitional (adoption 2026-07): missing docstrings in legacy code — burn down
     "D1",
 ]
@@ -100,7 +112,7 @@ ignore = [
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S108", "D", "PT"]  # PT: legacy unittest-style tests (transitional)
+"tests/**" = ["S101", "S108", "D", "PT", "ARG", "SLF"]  # PT: legacy unittest-style tests (transitional)
 "indicate/llm_indic.py" = ["E501"]  # long lines are prompt-template payload
 "docs/**" = ["D"]
 "gazetteer/**" = ["T201"]  # build scripts report progress on stdout by design
@@ -126,7 +138,6 @@ markers = [
     "needs_weights: requires model weights, locally or in the HF cache",
     "gazetteer: exercises gazetteer/, which ships in neither wheel nor sdist",
 ]
-# mypy configuration
 [tool.codespell]
 ignore-words-list = "te"
 
@@ -159,33 +170,14 @@ typeCheckingMode = "standard"
 venvPath = "."
 venv = ".venv"
 
-[tool.hatch.version]
-source = "uv-dynamic-versioning"
-
-[tool.hatch.build.targets.wheel]
-packages = ["indicate"]
+[tool.uv.build-backend]
+module-name = "indicate"
+module-root = ""
 # Neither of these may ship. Weights are HF-hosted and lazy-downloaded. Lookup
 # tables derive from data/hindi.csv.gz (which blends CC-BY-NC IIT Bombay pairs)
 # and data/punjabi.csv.gz (from the restricted roll deposit), so redistributing
 # them in an MIT wheel is a license problem, not a size one. Stated here rather
-# than left to .gitignore, which hatchling honours but which is one edit away
-# from silently including them. tests/e2e/test_wheel_contents.py asserts it.
-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
-
-[tool.hatch.build.targets.sdist]
-exclude = [
-    "/.github",
-    "/docs",
-    "/tests",
-    "/notebooks",
-    "/data",
-    "/training",
-    "/gazetteer",
-    "/examples",
-    "**/saved_weights/**",
-    "**/lookup*.tsv.gz",
-]
-
-[tool.uv-dynamic-versioning]
-vcs = "git"
-style = "pep440"
+# than left to .gitignore, which the build backend does not read.
+# tests/e2e/test_wheel_contents.py asserts it.
+source-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
+wheel-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]

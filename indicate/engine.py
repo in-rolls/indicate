@@ -189,7 +189,7 @@ class ModelBackend:
             # decline, not a crash.
             decoded = model_for(self._pair).candidates(list(words), self._beam)
         except Exception as exc:
-            logger.error(f"decode failed for {len(words)} word(s): {exc}")
+            logger.error("decode failed for %d word(s): %s", len(words), exc)
             self.unavailable = True
             return [None] * len(words)
 
@@ -268,7 +268,7 @@ class LLMBackend:
                 unique, batch_size=self._group_size
             )
         except Exception as exc:
-            logger.error(f"LLM backend declined {len(unique)} word(s): {exc}")
+            logger.error("LLM backend declined %d word(s): %s", len(unique), exc)
             self.unavailable = True
             return [None] * len(words)
         answered = {

@@ -19,5 +19,8 @@ jobs:
     uses: gojiplus/py-canon/.github/workflows/reusable-ci.yml@v1
     with:
       wheel-import: indicate
-      coverage-floor: 0
+      # Measured on CI (fresh clone, no local lookup tables): 76.53%, minus
+      # one point of slack. Locally the suite reaches 81%.
+      coverage-floor: 75
       python-versions: '["3.13", "3.14"]'  # repo floor is 3.13
+      run-preen: true

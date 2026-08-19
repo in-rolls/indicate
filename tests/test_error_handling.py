@@ -16,6 +16,7 @@ reaching for, and delete every ``try/except`` that turns a failure into a pass.
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -72,7 +73,7 @@ class TestFileHandling(unittest.TestCase):
         # Exercises _read_text_input's BOM branch end to end. The old test
         # asserted `result.output is not None`, which a crash also satisfies.
         with self.runner.isolated_filesystem():
-            with open("bom.txt", "wb") as handle:
+            with Path("bom.txt").open("wb") as handle:
                 handle.write(b"\xef\xbb\xbf" + HINDI.encode("utf-8"))
             result = self.runner.invoke(
                 cli, ["transliterate", "--from", "hindi", "--input", "bom.txt"]
@@ -82,7 +83,7 @@ class TestFileHandling(unittest.TestCase):
 
     def test_undecodable_bytes_produce_a_clean_error_not_a_traceback(self):
         with self.runner.isolated_filesystem():
-            with open("corrupted.txt", "wb") as handle:
+            with Path("corrupted.txt").open("wb") as handle:
                 handle.write(b"\xff\xfe\x00\x00")
             result = self.runner.invoke(
                 cli, ["transliterate", "--from", "hindi", "--input", "corrupted.txt"]
@@ -101,7 +102,7 @@ class TestFileHandling(unittest.TestCase):
         # This is the property the guard exists for: not that it errors, but
         # that the source file is still there afterwards.
         with self.runner.isolated_filesystem():
-            with open("same.txt", "w", encoding="utf-8") as handle:
+            with Path("same.txt").open("w", encoding="utf-8") as handle:
                 handle.write(HINDI)
             result = self.runner.invoke(
                 cli,
@@ -115,7 +116,7 @@ class TestFileHandling(unittest.TestCase):
                     "same.txt",
                 ],
             )
-            with open("same.txt", encoding="utf-8") as handle:
+            with Path("same.txt").open(encoding="utf-8") as handle:
                 after = handle.read()
         self.assertNotEqual(result.exit_code, 0)
         self.assertEqual(after, HINDI)

@@ -57,7 +57,7 @@ _LEVELS = (LEVEL_EXACT, LEVEL_CANONICAL)
 
 # Invisible formatting that varies freely between sources and carries no lexical
 # information: ZWJ, ZWNJ, ZWSP, soft hyphen, BOM/ZWNBSP.
-_ZERO_WIDTH = str.maketrans(dict.fromkeys("‍‌​­﻿", None))
+_ZERO_WIDTH = str.maketrans(dict.fromkeys("‍‌\u200b­﻿", None))
 
 # NFC decomposes most precomposed nukta letters because they are composition
 # exclusions (U+0958 QA -> U+0915 U+093C). These three are *not* exclusions, so

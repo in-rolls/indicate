@@ -52,7 +52,6 @@ is not even consistent (``ਕੁਮਾਰੀ``: table ``kumaari``, model ``kumar
 from __future__ import annotations
 
 import gzip
-import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -247,7 +246,7 @@ class Lookup:
         # gzip but invalid UTF-8 raises it mid-iteration, and letting that
         # escape kills the model fallback for a failure of the optional table.
         except (OSError, EOFError, gzip.BadGzipFile, UnicodeDecodeError) as exc:
-            logger.debug(f"lookup table unavailable at {path}: {exc}")
+            logger.debug("lookup table unavailable at %s: %s", path, exc)
             return None
 
         # The builder writes keys through lookup_key, so re-normalizing all of
@@ -260,13 +259,16 @@ class Lookup:
         stored = meta.get("normalizer")
         if stored != str(NORMALIZER_VERSION):
             logger.warning(
-                f"lookup table at {path} was built with normalizer {stored!r}, "
-                f"expected {NORMALIZER_VERSION}; disabling it rather than "
-                f"serving keys that can never match"
+                "lookup table at %s was built with normalizer %r, "
+                "expected %s; disabling it rather than "
+                "serving keys that can never match",
+                path,
+                stored,
+                NORMALIZER_VERSION,
             )
             return None
 
-        logger.debug(f"loaded {len(table):,} lookup keys from {path}")
+        logger.debug("loaded %s lookup keys from %s", f"{len(table):,}", path)
         return cls(table, meta)
 
     @classmethod
@@ -290,7 +292,7 @@ class Lookup:
         local = local_data_path(subdir, LOOKUP_FILE)
         path = (
             local
-            if os.path.exists(local)
+            if Path(local).exists()
             else (
                 try_resolve_data(subdir, LOOKUP_FILE)
                 if subdir in DOWNLOADABLE

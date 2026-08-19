@@ -23,11 +23,14 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from gazetteer.align import align_tokens
 from gazetteer.records import CandidateRow, aggregate, write_rows
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 BUILD_DIR = REPO_ROOT / "gazetteer" / "build" / "src"

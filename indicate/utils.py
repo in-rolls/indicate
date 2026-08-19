@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 import torch
 
-from .decoder import Decoder
-from .encoder import Encoder
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from .decoder import Decoder
+    from .encoder import Encoder
 
 START_TOKEN = "^"  # noqa: S105 - seq2seq framing token, not a secret
 END_TOKEN = "$"  # noqa: S105 - seq2seq framing token, not a secret
@@ -37,7 +41,7 @@ class CharTokenizer:
 
 def load_tokenizer(path: str) -> CharTokenizer:
     """Load a character tokenizer from a Keras-serialised tokenizer JSON file."""
-    with open(path, encoding="utf-8") as f:
+    with Path(path).open(encoding="utf-8") as f:
         data = json.load(f)
     # The Keras export is a JSON-encoded string whose ``config.word_index`` is
     # itself a JSON-encoded string.

@@ -1,4 +1,5 @@
 .*
+!.copier-answers.yml
 !.github
 !.gitignore
 !.gitattributes

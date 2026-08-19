@@ -20,7 +20,6 @@ one, so the source tree cannot stand in for the installed package.
 
 from __future__ import annotations
 
-import os
 import shutil
 from pathlib import Path
 
@@ -69,7 +68,7 @@ def real_table(tmp_path: Path, language: tuple) -> Path:
     """
     pair = language[0]
     built = local_data_path(pair.subdir, LOOKUP_FILE)
-    if not os.path.exists(built):
+    if not Path(built).exists():
         pytest.skip(
             f"no built table at {built}; "
             f"run training/build_lookup.py --lang {pair.source}"

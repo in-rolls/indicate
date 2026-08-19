@@ -87,8 +87,11 @@ class IndicLLMTransliterator:
         self._load_prebuilt_examples()
 
         logger.info(
-            f"Initialized IndicLLMTransliterator: {self.source_lang} → {self.target_lang}, "
-            f"provider={self.provider}, model={self.model}"
+            "Initialized IndicLLMTransliterator: %s → %s, provider=%s, model=%s",
+            self.source_lang,
+            self.target_lang,
+            self.provider,
+            self.model,
         )
 
     def _normalize_language(self, lang: str) -> str:
@@ -159,20 +162,19 @@ class IndicLLMTransliterator:
         """Auto-detect LLM provider from environment variables."""
         if os.environ.get("OPENAI_API_KEY"):
             return "openai"
-        elif os.environ.get("ANTHROPIC_API_KEY"):
+        if os.environ.get("ANTHROPIC_API_KEY"):
             return "anthropic"
-        elif os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"):
+        if os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY"):
             return "google"
-        elif os.environ.get("COHERE_API_KEY"):
+        if os.environ.get("COHERE_API_KEY"):
             return "cohere"
-        elif os.environ.get("INDICATE_LLM_PROVIDER"):
+        if os.environ.get("INDICATE_LLM_PROVIDER"):
             return os.environ["INDICATE_LLM_PROVIDER"]
-        else:
-            raise ValueError(
-                "No LLM provider detected. Please set one of: "
-                "OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, "
-                "or specify provider explicitly."
-            )
+        raise ValueError(
+            "No LLM provider detected. Please set one of: "
+            "OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, "
+            "or specify provider explicitly."
+        )
 
     def _get_default_model(self) -> str:
         """Get default model for the provider."""
@@ -215,10 +217,12 @@ class IndicLLMTransliterator:
                             examples[key]
                         )
                         logger.info(
-                            f"Loaded {len(examples[key])} pre-built examples for {key}"
+                            "Loaded %d pre-built examples for %s",
+                            len(examples[key]),
+                            key,
                         )
         except Exception as e:
-            logger.debug(f"Could not load pre-built examples: {e}")
+            logger.debug("Could not load pre-built examples: %s", e)
 
     def generate_few_shot_examples(self, num_examples: int = 5) -> list[dict[str, str]]:
         """Generate few-shot transliteration examples for the language pair.
@@ -268,7 +272,7 @@ class IndicLLMTransliterator:
             return examples[:num_examples]
 
         except Exception as e:
-            logger.warning(f"Could not generate few-shot examples: {e}")
+            logger.warning("Could not generate few-shot examples: %s", e)
             return self._get_fallback_examples()
 
     def _create_example_generation_prompt(self, num_examples: int) -> str:
@@ -291,7 +295,7 @@ Examples should include:
 - Common greetings (e.g., नमस्ते → Namaste)
 - States or regions (e.g., राजस्थान → Rajasthan)"""
 
-        elif self.source_lang == "tamil" and self.target_lang == "english":
+        if self.source_lang == "tamil" and self.target_lang == "english":
             return f"""Generate {num_examples} transliteration examples from Tamil to English.
 Include diverse examples: Tamil names, cities, cultural terms.
 
@@ -305,9 +309,8 @@ Examples should include:
 - Cultural terms (e.g., பொங்கல் → Pongal)
 - Common words"""
 
-        else:
-            # Generic prompt for other language pairs
-            return f"""Generate {num_examples} transliteration examples from {source_native} ({self.source_lang}) to {target_native} ({self.target_lang}).
+        # Generic prompt for other language pairs
+        return f"""Generate {num_examples} transliteration examples from {source_native} ({self.source_lang}) to {target_native} ({self.target_lang}).
 This is TRANSLITERATION (phonetic conversion), not translation.
 
 Format each example as:
@@ -352,14 +355,13 @@ Focus on accurate phonetic representation."""
                 {"source": "दिल्ली", "target": "Delhi"},
                 {"source": "गंगा", "target": "Ganga"},
             ]
-        elif self.source_lang == "tamil" and self.target_lang == "english":
+        if self.source_lang == "tamil" and self.target_lang == "english":
             return [
                 {"source": "தமிழ்", "target": "Tamil"},
                 {"source": "சென்னை", "target": "Chennai"},
                 {"source": "வணக்கம்", "target": "Vanakkam"},
             ]
-        else:
-            return []
+        return []
 
     def transliterate(
         self,
@@ -413,7 +415,7 @@ Focus on accurate phonetic representation."""
             return result
 
         except Exception as e:
-            logger.error(f"Transliteration failed: {e}")
+            logger.error("Transliteration failed: %s", e)
             raise RuntimeError(f"Failed to transliterate text: {e}") from e
 
     def _create_system_prompt(self, examples: list[dict[str, str]]) -> str:
@@ -506,7 +508,7 @@ Important Rules:
                 results.extend(batch_results)
 
             except Exception as e:
-                logger.error(f"Batch transliteration failed: {e}")
+                logger.error("Batch transliteration failed: %s", e)
                 # Fallback to individual transliteration
                 for text in batch:
                     try:

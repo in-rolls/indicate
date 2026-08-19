@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import csv
 from collections import Counter
-from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from gazetteer.script import is_clean_native_token
 from gazetteer.sources import SOURCES
 from indicate.normalize import gaz_key, latin_form
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+    from pathlib import Path
 
 FIELDNAMES = ("native", "latin", "source", "entity_type", "weight", "ref")
 

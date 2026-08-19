@@ -48,18 +48,19 @@ from __future__ import annotations
 
 import itertools
 import json
-import os
 import tempfile
 import time
-from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import litellm
 
 from .llm_indic import IndicLLMTransliterator
 from .logging import get_logger
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 logger = get_logger()
 
@@ -137,7 +138,7 @@ def _load_resolved(checkpoint_path: Path) -> dict[str, str]:
     resolved: dict[str, str] = {}
     if not checkpoint_path.exists():
         return resolved
-    with open(checkpoint_path, encoding="utf-8") as handle:
+    with checkpoint_path.open(encoding="utf-8") as handle:
         for line in handle:
             line = line.strip()
             if not line:
@@ -210,7 +211,7 @@ def _resolve_locally(
     try:
         backends = build(prefix, pair)
     except UnsupportedPairError as exc:
-        logger.debug(f"no local backend for {source_lang}->{target_lang}: {exc}")
+        logger.debug("no local backend for %s->%s: %s", source_lang, target_lang, exc)
         return {}
     try:
         resolved = resolve_words(tokens, backends)
@@ -221,7 +222,7 @@ def _resolve_locally(
         # every token be submitted. Without this, the default ("lookup", "llm")
         # chain aborted the whole batch on any machine with no lookup table,
         # which is every installed user.
-        logger.debug(f"no local backend could run, submitting everything: {exc}")
+        logger.debug("no local backend could run, submitting everything: %s", exc)
         return {}
     return {
         token: candidates[0][0]
@@ -234,12 +235,12 @@ def _append_resolved(checkpoint_path: Path, pairs: dict[str, str]) -> None:
     if not pairs:
         return
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(checkpoint_path, "a", encoding="utf-8") as handle:
-        for token, translit in pairs.items():
-            handle.write(
-                json.dumps({"token": token, "translit": translit}, ensure_ascii=False)
-                + "\n"
-            )
+    with checkpoint_path.open("a", encoding="utf-8") as handle:
+        handle.writelines(
+            json.dumps({"token": token, "translit": translit}, ensure_ascii=False)
+            + "\n"
+            for token, translit in pairs.items()
+        )
 
 
 # --------------------------------------------------------------------------- #
@@ -367,14 +368,14 @@ def _parse_gemini_jsonl(content) -> dict[str, str]:
     return results
 
 
-def _write_jsonl(records: list[dict]) -> str:
+def _write_jsonl(records: list[dict]) -> Path:
     tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 - delete=False, path returned
         "w", suffix=".jsonl", delete=False, encoding="utf-8"
     )
     for record in records:
         tmp.write(json.dumps(record, ensure_ascii=False) + "\n")
     tmp.close()
-    return tmp.name
+    return Path(tmp.name)
 
 
 def _submit_openai_jobs(
@@ -404,16 +405,16 @@ def _submit_openai_jobs(
     for request_chunk in _chunk(requests, max_requests_per_batch):
         path = _write_jsonl(request_chunk)
         try:
-            with open(path, "rb") as handle:
+            with path.open("rb") as handle:
                 # litellm types the sync variants as possibly-Coroutine
                 file_obj = cast(
-                    Any,
+                    "Any",
                     litellm.create_file(
                         file=handle, purpose="batch", custom_llm_provider=state.provider
                     ),
                 )
             batch = cast(
-                Any,
+                "Any",
                 litellm.create_batch(
                     completion_window=completion_window,
                     endpoint=BATCH_ENDPOINT,
@@ -422,7 +423,7 @@ def _submit_openai_jobs(
                 ),
             )
         finally:
-            os.unlink(path)
+            path.unlink()
         chunk_map = {
             r["custom_id"]: custom_id_to_tokens[r["custom_id"]] for r in request_chunk
         }
@@ -471,7 +472,7 @@ def _submit_gemini_jobs(
             if not job.name:
                 raise RuntimeError("Gemini batch create returned no name")
         finally:
-            os.unlink(path)
+            path.unlink()
         chunk_map = {r["key"]: custom_id_to_tokens[r["key"]] for r in request_chunk}
         state.jobs.append(
             BatchJob(
@@ -509,7 +510,7 @@ def _poll_job(job: BatchJob, provider: str) -> tuple[str, dict[str, str]]:
         return "running", {}
 
     retrieved = litellm.retrieve_batch(
-        batch_id=job.batch_id, custom_llm_provider=cast(Any, provider)
+        batch_id=job.batch_id, custom_llm_provider=cast("Any", provider)
     )
     status = getattr(retrieved, "status", None)
     output_file_id = getattr(retrieved, "output_file_id", None)
@@ -704,7 +705,11 @@ def collect_transliteration_batches(
                 # pads/truncates to len(group), which would silently mis-align an
                 # over- or under-count. Each token yields exactly one numbered line.
                 raw_lines = [ln for ln in text.splitlines() if ln.strip()]
-                parsed = transliterator._parse_batch_response(text, len(group))
+                # Deliberate reuse of the LLM transliterator's parser so batch
+                # and interactive paths cannot drift on response handling.
+                parsed = transliterator._parse_batch_response(  # noqa: SLF001
+                    text, len(group)
+                )
                 if len(raw_lines) != len(group) or any(not p for p in parsed):
                     logger.warning(
                         "Batch %s group %s: %d output line(s) for %d tokens; "
@@ -715,8 +720,7 @@ def collect_transliteration_batches(
                         len(group),
                     )
                     continue
-                for token, translit in zip(group, parsed, strict=True):
-                    newly_resolved[token] = translit
+                newly_resolved.update(zip(group, parsed, strict=True))
             job.status = "done"
         elif status == "failed":
             logger.warning(

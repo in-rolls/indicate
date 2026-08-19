@@ -1,5 +1,20 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Build backend migrated from hatchling + uv-dynamic-versioning to `uv_build`
+  with a static `project.version`; the wheel/sdist license gate (no
+  `saved_weights/`, no `lookup*.tsv.gz`) moved to `[tool.uv.build-backend]`
+  excludes and is still asserted by `tests/e2e/test_wheel_contents.py`.
+- PyPI publishing moved from the legacy `python-publish.yml` into the canon
+  `release.yml` (environment `pypi`); the trusted publisher on pypi.org must be
+  repointed at `release.yml`.
+- Lint select expanded to the py-canon rule set (pathlib, lazy logging
+  formatting, type-checking-only imports, and friends); CI enforces
+  `preen check --strict` and a coverage floor of 75%.
+
 ## 0.9.0 — 2026-08-16
 
 ### Added

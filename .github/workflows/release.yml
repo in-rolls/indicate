@@ -2,27 +2,72 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: >-
+          Upload to PyPI. Only takes effect when the run is started from a tag;
+          from a branch this is a build-and-check rehearsal.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
+# A manual run and a tag push can otherwise race for the same ref: two builds,
+# and two `dist` artifacts uploaded under one name.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     uses: gojiplus/py-canon/.github/workflows/reusable-release.yml@v1
-    with:
-      # py-canon defaults this to '3.12'. This project is >=3.13, so the
-      # default cannot resolve an interpreter and the `test` job dies with
-      # "requested interpreter resolved to Python 3.12.3" -- taking build,
-      # publish and github-release down with it. That is why v0.8.0 shipped to
-      # PyPI with no GitHub Release: the failure is a missing release, not an
-      # obvious version error.
-      test-python-version: '3.13'
-      # publish-pypi stays false, deliberately. PyPI trusted publishing cannot
-      # run through a reusable workflow -- the OIDC claim names py-canon's file
-      # rather than ours -- so the publish job lives in python-publish.yml,
-      # which is the filename the trusted publisher on pypi.org is pinned to.
-      # The two workflows are a division of labour, not duplication.
     permissions:
       contents: write
       id-token: write
+    with:
+      # `gh release create` fails when the release already exists, so create it
+      # only on the original tag push — not on a manual re-run of a released tag.
+      github-release: ${{ github.event_name == 'push' }}
+
+  # PyPI trusted publishing rejects reusable workflows (the OIDC claims
+  # must reference this repo's workflow file), so the publish step lives
+  # here rather than in py-canon's reusable-release.
+  #
+  # The PyPI trusted publisher for this project must be pinned to
+  # release.yml, environment `pypi` (it was python-publish.yml before the
+  # canon migration) — update the publisher config on pypi.org in lockstep
+  # with any rename here.
+  publish:
+    needs: release
+    # A PyPI upload cannot be withdrawn, so publish only from a tag. The reusable
+    # build rejects the tag unless it matches the version in pyproject.toml.
+    if: >-
+      startsWith(github.ref, 'refs/tags/') &&
+      (github.event_name == 'push' || inputs.publish)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Publish (trusted publishing, PEP 740 attestations)
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          attestations: true
+          # The `if:` above decides *which builds may publish*. This decides what
+          # happens when one version is published twice, which that guard cannot
+          # see. The concurrency group serialises a manual dispatch and a tag
+          # push aimed at the same version, it does not deduplicate them, and
+          # cancel-in-progress is false -- so the queued run starts once the
+          # first finishes and uploads identical files. A completed run is not
+          # covered by concurrency at all, so a plain rerun does the same. PyPI
+          # answers with a 400 and the release goes red having already
+          # succeeded, which is the worst of both readings.
+          skip-existing: true

@@ -19,11 +19,14 @@ otherwise would let a place romanization capture every surname occurrence.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from gazetteer.script import has_indic_content, strip_edge_noise
 from indicate.normalize import gaz_key
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator, Mapping, Sequence
 
 #: Coverage thresholds reported by default; the trunk size is chosen from these
 #: rather than from a magic entry count.

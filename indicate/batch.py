@@ -778,7 +778,9 @@ def transliterate_tokens_batched(
         # Handled entirely here, before _make_transliterator. Guarding only the
         # requeue further down still demanded an API key on the way in, so a
         # documented local-only probe failed with "No LLM provider detected".
-        submit_transliteration_batches(
+        # No provider is involved on this path, so the provider, model, key,
+        # completion window and batch size have nothing to apply to.
+        submit_transliteration_batches(  # preen: allow-dropped-arg
             unique_tokens,
             source_lang,
             target_lang,

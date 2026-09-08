@@ -145,6 +145,8 @@ ignore-words-list = "te"
 style = "google"
 arg-type-hints-in-docstring = false
 check-return-types = false
+# Same reason as return types: the annotation is the type, the docstring is prose.
+check-yield-types = false
 check-class-attributes = false
 allow-init-docstring = true
 exclude = '\.venv|tests|docs|data|examples|scripts|notebooks|training'

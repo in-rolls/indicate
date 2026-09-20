@@ -60,6 +60,14 @@ MAX_RATIO = 4.0
 
 #: Per-language source corpus, its columns, and the convention it speaks.
 CORPORA = {
+    "gujarati": {
+        "path": None,
+        "source": "instate Gujarat 2017 recovered token corpus",
+        "native": "gujarati",
+        "latin": "english",
+        "convention": "roll",
+        "subdir": "gujarati_to_english",
+    },
     "urdu": {
         "path": None,
         "source": "instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz",
@@ -243,7 +251,12 @@ def build_table(path: Path, native: str, latin: str) -> tuple[dict[str, str], in
                 key = lookup_key(native_token)
                 value = latin_form(latin_token)
                 if key and value:
-                    votes[key][value] += 1
+                    try:
+                        weight = int(row.get("count") or 1)
+                    except ValueError:
+                        continue
+                    if weight > 0:
+                        votes[key][value] += weight
 
     contested = sum(1 for counter in votes.values() if len(counter) > 1)
     table = {

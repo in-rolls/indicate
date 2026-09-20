@@ -175,6 +175,16 @@ PAIRS: dict[tuple[str, str], Pair] = {
             has_model=False,
         ),
         Pair(
+            source="gujarati",
+            target="english",
+            subdir="gujarati_to_english",
+            input_vocab="",
+            target_vocab="",
+            max_input=0,
+            max_output=0,
+            has_model=False,
+        ),
+        Pair(
             source="kannada",
             target="english",
             subdir="kannada_to_english",

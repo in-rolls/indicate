@@ -95,6 +95,16 @@ indicate transliterate "സുഹൈൽ" --from malayalam --engine lookup
 The corpus and harvest provenance are described in `data/malayalam.md`. The
 table is built locally; lookup misses do not invoke a paid provider.
 
+Gujarati supports a local lookup built from a controlled two-column
+`gujarati,english` corpus. The source corpus stays outside the package:
+
+```sh
+uv run --group train python training/build_lookup.py --lang gujarati \
+    --corpus /path/to/gujarati.csv.gz
+indicate transliterate "પટેલ" --from gujarati --engine lookup
+```
+
+Uncovered Gujarati tokens remain lookup misses and do not invoke a paid provider.
 
 The Bengali word table downloads from the pinned model-assets repository on
 first use and is then cached. It is compiled from a shared, LLM-labeled

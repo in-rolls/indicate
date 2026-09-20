@@ -952,6 +952,7 @@ docs = [
     { name = "sphinx-copybutton" },
 ]
 test = [
+    { name = "indic-transliteration" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-xdist" },
@@ -1000,6 +1001,7 @@ docs = [
     { name = "sphinx-copybutton", specifier = ">=0.5" },
 ]
 test = [
+    { name = "indic-transliteration", specifier = ">=2.3" },
     { name = "pytest", specifier = ">=7.0" },
     { name = "pytest-cov", specifier = ">=4.0" },
     { name = "pytest-xdist", specifier = ">=3.0" },

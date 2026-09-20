@@ -32,6 +32,31 @@ pip install indicate
 
 ## 🔧 Quick Setup
 
+### Local Urdu lookup
+
+The J&K electoral-roll recovery in `instate` supplies a shared Urdu token corpus.
+Build the local lookup from that corpus:
+
+```sh
+export INDICATE_DATA_DIR="$PWD/indicate/data"
+uv run --group train python training/build_lookup.py --lang urdu \
+    --corpus ../instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz
+indicate transliterate "خان" --from urdu --engine lookup
+```
+
+The lookup returns covered spellings without an API call. Uncovered tokens remain
+unresolved with `--engine lookup`. The final corpus contains 45,427 reviewed token
+types and 27,221 eligible Urdu/Latin pairs. All 4,399 native types selected by the
+calibrated upnaam handoff are mapped, covering 970,947 selected occurrences. The
+installed table has exactly 27,221 keys and no contested or tied key.
+
+Some pairs have human lexical support and others are model-only silver annotations.
+This is not a verified pronunciation dictionary. Counts, alternatives, exclusions
+and hashes live beside `urdu.csv.gz` in `provenance.json`, `validation.json` and
+`transliterations.parquet`. The shared corpus contains decoded tokens only; it has
+no voter IDs, source filenames, locations or relationships. Source and selection
+notes are in `data/README.md`.
+
 ### For LLM-based transliteration (recommended):
 ```bash
 pip install indicate
@@ -51,6 +76,25 @@ pip install indicate
 ```
 
 ### For the lookup backend:
+
+Kannada has a local lookup built from the existing electoral word-pair corpus in
+`data/kannada.csv.gz`. Build it with
+`uv run --group train python training/build_lookup.py --lang kannada`, then use
+`indicate transliterate "ಶಿವಪ್ಪ" --from kannada --engine lookup`. Uncovered words
+remain lookup misses; this does not invoke a paid provider. Corpus provenance is
+in `data/kannada.provenance.json`.
+
+Malayalam has a local lookup built from `data/malayalam.csv.gz` (Kerala parallel
+rolls and Lakshadweep spelling harvests). Build it with:
+
+```sh
+uv run --group train python training/build_lookup.py --lang malayalam
+indicate transliterate "സുഹൈൽ" --from malayalam --engine lookup
+```
+
+The corpus and harvest provenance are described in `data/malayalam.md`. The
+table is built locally; lookup misses do not invoke a paid provider.
+
 
 The Bengali word table downloads from the pinned model-assets repository on
 first use and is then cached. It is compiled from a shared, LLM-labeled
@@ -221,8 +265,9 @@ transliterator.transliterate("राजशेखर चिंतालपति"
 transliterator.transliterate_batch(["राजेश", "गौरव", "प्रिया"])
 ```
 
-For millions of tokens, `indicate.batch` submits to a provider's async Batch API
-with checkpointing, and answers what it can locally first:
+For millions of tokens, `indicate.batch` uses
+[batchlane](https://github.com/gojiplus/batchlane) to submit asynchronous provider
+batches with checkpointing, and answers what it can locally first:
 
 ```python
 from indicate.batch import transliterate_tokens_batched
@@ -235,6 +280,34 @@ pairs = transliterate_tokens_batched(
     engine=("lookup", "llm"),  # default; ("lookup","model","llm") goes further
 )
 ```
+
+Submission and collection can run in separate processes:
+
+```python
+from indicate.batch import (
+    submit_transliteration_batches,
+    collect_transliteration_batches,
+)
+
+submit_transliteration_batches(
+    tokens,
+    "punjabi",
+    "english",
+    checkpoint_path="run.jsonl",
+    provider="gemini",
+    model="gemini-2.5-flash",
+    use_few_shot=False,
+)
+done, pairs = collect_transliteration_batches("run.jsonl")
+```
+
+Keep the checkpoint and its `.batchstate.json` and `.batchlane.jsonl` sidecars
+together while a job is running. The state saves exact prompts; batchlane saves
+provider handles. Resuming completes interrupted submissions before collecting
+results. The resolved token file remains after the driver finishes, so answers
+survive provider retention limits. Use one writer per checkpoint and a separate
+checkpoint for each language pair and model. Provider support follows batchlane;
+Azure, Vertex AI, and Bedrock batch adapters are not included.
 
 ## 📊 JSON Output Format
 

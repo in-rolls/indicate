@@ -16,8 +16,6 @@ with no table -- which is every installed user -- was covered by nothing.
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import pytest
 
 import indicate
@@ -272,7 +270,7 @@ def test_a_local_backend_after_llm_runs_before_anything_is_requeued(
     _require_table()
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     fake = FakeBatchAPI(mismatch_multi=True)
-    with patch.object(batch_mod, "litellm", fake):
+    with fake:
         out = batch_mod.transliterate_tokens_batched(
             [SINGH, KAUR],
             "punjabi",
@@ -303,7 +301,7 @@ def test_resuming_with_new_tokens_still_consults_the_table_first(
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     ckpt = tmp_path / "c.jsonl"
     fake = FakeBatchAPI()
-    with patch.object(batch_mod, "litellm", fake):
+    with fake:
         # Leave a batch in flight for a word the table does not know.
         batch_mod.submit_transliteration_batches(
             ["ZZZQQ"],

@@ -6,7 +6,7 @@ build-backend = "uv_build"
 name = "indicate"
 description = "Transliterations to/from Indian languages"
 readme = "README.md"
-version = "0.9.0"
+version = "0.10.0"
 authors = [
     {name = "Rajashekar Chintalapati", email = "rajshekar.ch@gmail.com"},
     {name = "Gaurav Sood", email = "gsood07@gmail.com"}
@@ -31,7 +31,7 @@ dependencies = [
     "safetensors>=0.4.0",
     "huggingface-hub>=0.23",  # lazy-download model weights at first use
     "litellm>=1.0.0",  # For LLM-based transliteration
-    "google-genai>=1.0",  # native Gemini batch provider (indicate.batch)
+    "batchlane>=0.1.0",
 ]
 
 [dependency-groups]
@@ -49,21 +49,20 @@ dev = [
     "pydoclint>=0.5",
     "pre-commit>=4",
     "types-tqdm>=4.66",
-    # [tool.pyright] includes gazetteer/, and gazetteer/phonetic.py imports
-    # this. Without it here, `make type-check` after a plain `uv sync --dev`
-    # reports a missing import that has nothing to do with the change in hand.
-    # Named individually rather than pulling in the whole train group, which
-    # carries pandas, matplotlib and datasets.
-    "indic-transliteration>=2.3",
     # Same reason: gazetteer/mine_frequency.py imports pyarrow.parquet, and
     # pyright runs against a dev-group sync in CI.
     "pyarrow>=15",
     { include-group = "test" },
 ]
 test = [
+    # The Kannada harvest regression tests import the mechanical transliterator.
+    # The dev group includes this group, so Pyright can also resolve the import
+    # from gazetteer/phonetic.py without installing the larger train group.
+    "indic-transliteration>=2.3",
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
+    "respx>=0.21",
 ]
 train = [
     "pandas>=2.0",
@@ -123,12 +122,19 @@ testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = [
     "-ra",
+    "--strict-config",
     "--strict-markers",
     "--cov=indicate",
     "--cov-report=term-missing",
     # Never reach the network on a default run.
     "-m",
     "not live",
+]
+log_level = "INFO"
+xfail_strict = true
+filterwarnings = [
+    "error",
+    'ignore:codecs\.open\(\) is deprecated\. Use open\(\) instead\.:DeprecationWarning',
 ]
 markers = [
     "slow: slow tests (deselect with '-m \"not slow\"')",

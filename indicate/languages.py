@@ -165,6 +165,36 @@ PAIRS: dict[tuple[str, str], Pair] = {
     pair.key: pair
     for pair in (
         Pair(
+            source="urdu",
+            target="english",
+            subdir="urdu_to_english",
+            input_vocab="",
+            target_vocab="",
+            max_input=0,
+            max_output=0,
+            has_model=False,
+        ),
+        Pair(
+            source="kannada",
+            target="english",
+            subdir="kannada_to_english",
+            input_vocab="",
+            target_vocab="",
+            max_input=0,
+            max_output=0,
+            has_model=False,
+        ),
+        Pair(
+            source="malayalam",
+            target="english",
+            subdir="malayalam_to_english",
+            input_vocab="",
+            target_vocab="",
+            max_input=0,
+            max_output=0,
+            has_model=False,
+        ),
+        Pair(
             source="bengali",
             target="english",
             subdir="bengali_to_english",

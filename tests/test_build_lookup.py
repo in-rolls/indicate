@@ -143,5 +143,81 @@ class TestEvalCleanTablesHaveNoLeakage(unittest.TestCase):
             self.assertEqual(present, [], f"{code}: {len(present)} test words leaked")
 
 
+class TestKannadaCorpus(unittest.TestCase):
+    def test_decomposed_vowels_use_the_same_offline_lookup(self):
+        import unicodedata
+
+        from indicate.languages import supports
+        from indicate.lookup import lookup_key
+        from training.build_lookup import build_table
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "kannada.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["kannada", "english"])
+                writer.writerow(["ಗೋವಿಂದ", "govinda"])
+            table, _, _ = build_table(corpus, "kannada", "english")
+            decomposed = unicodedata.normalize("NFD", "ಗೋವಿಂದ")
+            self.assertEqual(table[lookup_key(decomposed)], "govinda")
+            self.assertTrue(supports("kannada", "english", "lookup"))
+            self.assertFalse(supports("kannada", "english", "model"))
+
+
+class TestMalayalamCorpus(unittest.TestCase):
+    def test_chillu_spellings_share_the_built_lookup_key(self):
+        from indicate.languages import supports
+        from indicate.lookup import lookup_key
+        from training.build_lookup import build_table
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "malayalam.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["malayalam", "english"])
+                writer.writerow(["സുഹൈൽ", "suhail"])
+            table, _, _ = build_table(corpus, "malayalam", "english")
+            self.assertEqual(table[lookup_key("സുഹൈല്‍")], "suhail")
+            self.assertTrue(supports("malayalam", "english", "lookup"))
+            self.assertFalse(supports("malayalam", "english", "model"))
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUrduCorpus(unittest.TestCase):
+    def test_external_corpus_builds_an_offline_urdu_lookup(self):
+        from indicate.languages import supports
+        from indicate.lookup import DOWNLOADABLE, lookup_key
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "urdu.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["urdu", "english"])
+                writer.writerow(["خان", "khan"])
+                writer.writerow(["نور", "noor"])
+                writer.writerow(["نور", "nur"])
+            output = Path(tmp) / "lookup.tsv.gz"
+            self.assertEqual(
+                main(["--lang", "urdu", "--corpus", str(corpus), "--out", str(output)]),
+                0,
+            )
+            table = Lookup.from_path(output)
+            assert table is not None
+            self.assertEqual(table.get("(خان)"), "(khan)")
+            self.assertIsNone(table.get("نور"))
+            self.assertNotEqual(lookup_key("خان"), lookup_key("خاں"))
+            self.assertNotEqual(lookup_key("عَلی"), lookup_key("علی"))
+            self.assertEqual(table.convention, "muse-contributor-urdu")
+            self.assertEqual(
+                table.meta["source_sha256"],
+                hashlib.sha256(corpus.read_bytes()).hexdigest(),
+            )
+            self.assertTrue(supports("urdu", "english", "lookup"))
+            self.assertFalse(supports("urdu", "english", "model"))
+            self.assertNotIn("urdu_to_english", DOWNLOADABLE)
+
+    def test_urdu_requires_an_explicit_external_corpus(self):
+        self.assertEqual(main(["--lang", "urdu"]), 1)

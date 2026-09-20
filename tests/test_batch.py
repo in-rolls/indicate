@@ -1,7 +1,7 @@
 """Tests for batch-mode LLM transliteration (indicate.batch).
 
-All provider calls are mocked with a stateful fake of LiteLLM's batch API, so these
-run with no network access and no API spend.
+Provider HTTP calls are mocked while the real batchlane adapter and journal
+run end to end, with no API spend.
 
 The batching tests pass ``engine=("llm",)`` on purpose. Their fixtures are real
 Punjabi words, so with the table on nothing would ever be submitted and the tests
@@ -17,10 +17,11 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
+import httpx
 import pytest
+import respx
 
 import indicate.batch as batch_mod
 from indicate.batch import (
@@ -38,7 +39,7 @@ def _tokens_in_request(request: dict) -> list[str]:
 
 
 class FakeBatchAPI:
-    """Minimal stand-in for the litellm batch functions used by indicate.batch.
+    """Stateful fake of OpenAI HTTP endpoints used by the real batchlane adapter.
 
     Echoes ``xlit-<token>`` for each token. Set ``mismatch_multi=True`` to make any
     group with >1 token emit one too few output lines (exercises the requeue path).
@@ -53,28 +54,50 @@ class FakeBatchAPI:
         self.batches: dict[str, str] = {}  # batch_id -> input_file_id
         self.retrieve_calls: list[str] = []
 
-    def create_file(self, *, file, purpose, custom_llm_provider):
+    def __enter__(self):
+        self.router = respx.mock(assert_all_called=False)
+        self.router.__enter__()
+        api_root = "https://" + "api.openai.com/v1"
+        self.router.post(f"{api_root}/files").mock(side_effect=self.create_file)
+        self.router.post(f"{api_root}/batches").mock(side_effect=self.create_batch)
+        self.router.get(url__regex=rf"{api_root}/batches/batch-\d+$").mock(
+            side_effect=self.retrieve_batch
+        )
+        self.router.get(url__regex=rf"{api_root}/files/out-batch-\d+/content$").mock(
+            side_effect=lambda request: httpx.Response(
+                200, text=self.file_content(file_id=request.url.path.split("/")[-2])
+            )
+        )
+        return self
+
+    def __exit__(self, *args):
+        return self.router.__exit__(*args)
+
+    def create_file(self, request):
         self._n += 1
         file_id = f"file-{self._n}"
-        lines = file.read().decode("utf-8").splitlines()
-        self.input_files[file_id] = [json.loads(line) for line in lines if line.strip()]
-        return SimpleNamespace(id=file_id)
+        lines = request.content.decode("utf-8").splitlines()
+        self.input_files[file_id] = [
+            json.loads(line) for line in lines if line.startswith("{")
+        ]
+        return httpx.Response(200, json={"id": file_id})
 
-    def create_batch(
-        self, *, completion_window, endpoint, input_file_id, custom_llm_provider
-    ):
+    def create_batch(self, request):
         self._n += 1
         batch_id = f"batch-{self._n}"
-        self.batches[batch_id] = input_file_id
-        return SimpleNamespace(id=batch_id)
+        self.batches[batch_id] = json.loads(request.content)["input_file_id"]
+        return httpx.Response(200, json={"id": batch_id})
 
-    def retrieve_batch(self, *, batch_id, custom_llm_provider):
+    def retrieve_batch(self, request):
+        batch_id = request.url.path.split("/")[-1]
         self.retrieve_calls.append(batch_id)
         if self.pending_first and len(self.retrieve_calls) == 1:
-            return SimpleNamespace(status="in_progress", output_file_id=None)
-        return SimpleNamespace(status="completed", output_file_id=f"out-{batch_id}")
+            return httpx.Response(200, json={"status": "in_progress"})
+        return httpx.Response(
+            200, json={"status": "completed", "output_file_id": f"out-{batch_id}"}
+        )
 
-    def file_content(self, *, file_id, custom_llm_provider):
+    def file_content(self, *, file_id):
         batch_id = file_id[len("out-") :]
         requests = self.input_files[self.batches[batch_id]]
         out_lines = []
@@ -113,7 +136,7 @@ class BatchTestBase(unittest.TestCase):
 class TestSubmit(BatchTestBase):
     def test_submit_writes_state_and_groups(self):
         fake = FakeBatchAPI()
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             state = submit_transliteration_batches(
                 ["ਰਾਜ", "ਪੰਜਾਬ", "ਸਿੰਘ"],
                 "punjabi",
@@ -142,7 +165,7 @@ class TestSubmit(BatchTestBase):
             json.dumps({"token": "ਰਾਜ", "translit": "raj"}) + "\n", encoding="utf-8"
         )
         fake = FakeBatchAPI()
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             state = submit_transliteration_batches(
                 ["ਰਾਜ", "ਪੰਜਾਬ"],
                 "punjabi",
@@ -163,7 +186,7 @@ class TestLookupSeeding(BatchTestBase):
 
     def test_known_tokens_are_never_submitted(self):
         fake = FakeBatchAPI()
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             state = submit_transliteration_batches(
                 ["ਸਿੰਘ", "ਕੌਰ", "ZZZQQ"],
                 "punjabi",
@@ -183,7 +206,7 @@ class TestLookupSeeding(BatchTestBase):
     def test_table_answers_land_in_the_checkpoint(self):
         # They must be written, not merely skipped, or the caller loses them.
         fake = FakeBatchAPI()
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             submit_transliteration_batches(
                 ["ਸਿੰਘ", "ZZZQQ"],
                 "punjabi",
@@ -219,7 +242,7 @@ class TestCollect(BatchTestBase):
     def test_collect_pending_then_completed(self):
         fake = FakeBatchAPI()
         fake.pending_first = True
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             submit_transliteration_batches(
                 ["ਰਾਜ", "ਪੰਜਾਬ"],
                 "punjabi",
@@ -247,7 +270,7 @@ class TestCollect(BatchTestBase):
 class TestDriver(BatchTestBase):
     def test_driver_end_to_end(self):
         fake = FakeBatchAPI()
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             resolved = transliterate_tokens_batched(
                 ["ਰਾਜ", "ਪੰਜਾਬ", "ਸਿੰਘ"],
                 "punjabi",
@@ -270,7 +293,7 @@ class TestDriver(BatchTestBase):
         # mismatch_multi drops a line for the initial >1-token group, forcing the
         # driver to requeue those tokens one-per-request (which then resolve).
         fake = FakeBatchAPI(mismatch_multi=True)
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             resolved = transliterate_tokens_batched(
                 ["ਰਾਜ", "ਪੰਜਾਬ"],
                 "punjabi",
@@ -288,7 +311,7 @@ class TestDriver(BatchTestBase):
 
     def test_driver_resumes_existing_batch(self):
         fake = FakeBatchAPI()
-        with patch.object(batch_mod, "litellm", fake):
+        with fake:
             # First, only submit (leave a batch in flight, no collection).
             submit_transliteration_batches(
                 ["ਰਾਜ", "ਪੰਜਾਬ"],
@@ -319,3 +342,158 @@ class TestDriver(BatchTestBase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_resume_completes_interrupted_submission_without_regenerating_prompts(
+    tmp_path, monkeypatch
+):
+    from batchlane.adapters.base import KEY_FIELD
+
+    from indicate.llm_indic import IndicLLMTransliterator
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    examples = []
+
+    def generate(self):
+        examples.append(True)
+        return [{"source": "ਰਾਜ", "target": "raj"}]
+
+    monkeypatch.setattr(IndicLLMTransliterator, "generate_few_shot_examples", generate)
+    checkpoint = tmp_path / "run.jsonl"
+    fake = FakeBatchAPI()
+    with fake:
+        accepted = []
+        attempts = []
+
+        def submit(request):
+            attempts.append(True)
+            if len(attempts) == 2:
+                raise RuntimeError("process stopped")
+            reply = fake.create_batch(request)
+            accepted.append(
+                {
+                    "id": reply.json()["id"],
+                    "metadata": json.loads(request.content)["metadata"],
+                }
+            )
+            return reply
+
+        fake.router.post("https://api.openai.com/v1/batches").mock(side_effect=submit)
+        fake.router.get("https://api.openai.com/v1/batches").mock(
+            side_effect=lambda request: httpx.Response(200, json={"data": accepted})
+        )
+        with pytest.raises(RuntimeError, match="process stopped"):
+            submit_transliteration_batches(
+                ["ਰਾਜ", "ਪੰਜਾਬ"],
+                "punjabi",
+                "english",
+                checkpoint_path=checkpoint,
+                provider="openai",
+                group_size=1,
+                max_requests_per_batch=1,
+                engine=("llm",),
+            )
+        assert len(fake.batches) == 1
+        assert accepted[0]["metadata"][KEY_FIELD]
+        done, pairs = collect_transliteration_batches(checkpoint)
+        assert done
+        assert pairs == {"ਰਾਜ": "xlit-ਰਾਜ", "ਪੰਜਾਬ": "xlit-ਪੰਜਾਬ"}
+        assert len(fake.batches) == 2
+        assert len(examples) == 1
+
+
+def test_explicit_key_survives_submission_and_collection_without_environment(
+    tmp_path, monkeypatch
+):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    fake = FakeBatchAPI()
+    with fake:
+        result = transliterate_tokens_batched(
+            ["ਰਾਜ"],
+            "punjabi",
+            "english",
+            checkpoint_path=tmp_path / "run.jsonl",
+            provider="openai",
+            api_key="explicit-key",
+            use_few_shot=False,
+            engine=("llm",),
+            poll_interval=0,
+        )
+        assert result == {"ਰਾਜ": "xlit-ਰਾਜ"}
+        assert all(
+            call.request.headers["authorization"] == "Bearer explicit-key"
+            for call in fake.router.calls
+        )
+
+
+def test_resume_rejects_changed_language_before_provider_io(tmp_path, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    checkpoint = tmp_path / "run.jsonl"
+    with FakeBatchAPI() as fake:
+        submit_transliteration_batches(
+            ["ਰਾਜ"],
+            "punjabi",
+            "english",
+            checkpoint_path=checkpoint,
+            provider="openai",
+            use_few_shot=False,
+            engine=("llm",),
+        )
+        calls = len(fake.router.calls)
+        with pytest.raises(ValueError, match="checkpoint"):
+            transliterate_tokens_batched(
+                ["ਰਾਜ"],
+                "hindi",
+                "english",
+                checkpoint_path=checkpoint,
+                provider="openai",
+                use_few_shot=False,
+                engine=("llm",),
+            )
+        assert len(fake.router.calls) == calls
+
+
+def test_gemini_uses_batchlane_and_disables_thinking(tmp_path, monkeypatch):
+    from batchlane.adapters.gemini import BASE_URL
+
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    with respx.mock as router:
+        submit = router.post(
+            f"{BASE_URL}/models/gemini-2.5-flash:batchGenerateContent"
+        ).mock(return_value=httpx.Response(200, json={"name": "batches/one"}))
+        state = submit_transliteration_batches(
+            ["ਰਾਜ"],
+            "punjabi",
+            "english",
+            checkpoint_path=tmp_path / "run.jsonl",
+            provider="gemini",
+            model="gemini-2.5-flash",
+            use_few_shot=False,
+            engine=("llm",),
+        )
+        request = json.loads(submit.calls[0].request.content)["batch"]["input_config"][
+            "requests"
+        ]["requests"][0]["request"]
+        assert request["generationConfig"]["thinkingConfig"]["thinkingBudget"] == 0
+        assert state.jobs[0].batch_id == "batches/one"
+
+
+def test_unsupported_lane_is_rejected_before_generating_paid_examples(tmp_path):
+    import batchlane as bl
+
+    with (
+        patch(
+            "indicate.llm_indic.IndicLLMTransliterator.generate_few_shot_examples"
+        ) as examples,
+        pytest.raises(bl.AdapterNotShippedError),
+    ):
+        submit_transliteration_batches(
+            ["ਰਾਜ"],
+            "punjabi",
+            "english",
+            checkpoint_path=tmp_path / "run.jsonl",
+            provider="bedrock",
+            model="anthropic.claude-sonnet-4-6",
+            engine=("llm",),
+        )
+    examples.assert_not_called()

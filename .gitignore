@@ -47,3 +47,8 @@ docs/_build/
 
 # Provider batch checkpoints: runtime state with real batch/file ids
 *.batchstate.json
+
+# Local provider harvest journals. Release artifacts keep only the validated
+# corpora and compact provenance summaries.
+data/kannada_2017_harvest/
+data/malayalam_2026_harvest/

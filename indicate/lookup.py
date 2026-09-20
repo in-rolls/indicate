@@ -73,7 +73,16 @@ FORMAT_VERSION = 1
 #:
 #: Membership means "look for it", not "it is there". Use :data:`DOWNLOADABLE`
 #: for the stronger claim.
-SHIPPED = frozenset({"bengali_to_english", "hindi_to_english", "punjabi_to_english"})
+SHIPPED = frozenset(
+    {
+        "bengali_to_english",
+        "hindi_to_english",
+        "punjabi_to_english",
+        "malayalam_to_english",
+        "kannada_to_english",
+        "urdu_to_english",
+    }
+)
 
 #: Directories whose table can be fetched from the model repo.
 #:
@@ -119,6 +128,16 @@ def split_edges(word: str) -> tuple[str, str, str]:
         return "", "", ""
     start = len(word) - len(word.lstrip(EDGE_NOISE))
     end = len(word.rstrip(EDGE_NOISE))
+    if "‍" in core:
+        for joined, atomic in {
+            "ന്‍": "ൻ",
+            "ര്‍": "ർ",
+            "ല്‍": "ൽ",
+            "ള്‍": "ൾ",
+            "ണ്‍": "ൺ",
+            "ക്‍": "ൿ",
+        }.items():
+            core = core.replace(joined, atomic)
     return word[:start], gaz_key(core), word[end:]
 
 

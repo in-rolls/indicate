@@ -6,7 +6,7 @@ build-backend = "uv_build"
 name = "indicate"
 description = "Transliterations to/from Indian languages"
 readme = "README.md"
-version = "0.9.0"
+version = "0.10.0"
 authors = [
     {name = "Rajashekar Chintalapati", email = "rajshekar.ch@gmail.com"},
     {name = "Gaurav Sood", email = "gsood07@gmail.com"}
@@ -31,7 +31,7 @@ dependencies = [
     "safetensors>=0.4.0",
     "huggingface-hub>=0.23",  # lazy-download model weights at first use
     "litellm>=1.0.0",  # For LLM-based transliteration
-    "google-genai>=1.0",  # native Gemini batch provider (indicate.batch)
+    "batchlane>=0.1.0",
 ]
 
 [dependency-groups]
@@ -64,6 +64,7 @@ test = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "pytest-xdist>=3.0",
+    "respx>=0.21",
 ]
 train = [
     "pandas>=2.0",

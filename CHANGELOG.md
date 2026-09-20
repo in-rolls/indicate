@@ -2,7 +2,24 @@
 
 ## [Unreleased]
 
+## 0.10.0 — 2026-09-20
+
 ### Changed
+
+- Add a local Urdu lookup built from the shared, gated JK token corpus, with
+  model-only and human-supported evidence recorded separately. The final table
+  contains 27,221 unambiguous keys and covers all 4,399 Urdu token types selected
+  by the calibrated upnaam handoff.
+
+- Add local Kannada and Malayalam lookup directions with validated word-pair
+  corpora, deterministic lookup builds, compact provenance summaries, and
+  Malayalam chillu normalization. Raw provider journals remain local and are
+  excluded from the repository and package artifacts.
+
+- Asynchronous LLM batches use `batchlane` for provider transport, chunking,
+  and resumable submission. Exact prompts are saved before provider calls;
+  local fallback, output validation, and permanent token results remain in
+  `indicate`. Native `google-genai` batch plumbing is removed.
 
 - Build backend migrated from hatchling + uv-dynamic-versioning to `uv_build`
   with a static `project.version`; the wheel/sdist license gate (no

@@ -1,0 +1,44 @@
+{
+  "corpus": "data/malayalam.csv.gz",
+  "corpus_sha256": "8601f940f21d97f887de9b9b11701dd4b6da3cf5667aad6a17e640a2b579f7f5",
+  "unique_native_keys": 400506,
+  "method": "Kerala parallel electoral-roll spellings, Lakshadweep SIR 2002 spelling harvests, and a validated 2026 Malayalam OCR-residue harvest.",
+  "scope": "Word spellings, including OCR fragments; not independently validated name accuracy.",
+  "harvest_2026": {
+    "model": "gpt-5.4-mini-2026-03-17",
+    "requests": 1065,
+    "prompt_tokens": 485726,
+    "completion_tokens": 185703,
+    "reasoning_tokens": 0,
+    "finish_stop": 1065,
+    "actual_cost_usd": 0.599979,
+    "accepted_tokens_before_corrections": 26601,
+    "usable_tokens_after_corrections": 26606,
+    "local_corrections": 5,
+    "quarantined_tokens": ["്്"],
+    "raw_artifacts_stored_in_repository": false,
+    "raw_artifact_sha256": {
+      "batch.json": "26ee625311d3af6c9a772b87c0a3b077aa55e1d685cf1213e239d5ecb4e22eef",
+      "batch_audit.json": "1e8f723be46933de86a51a9f9f0583a5c7667cc5ea0430e4191f1b8d6d8e49f6",
+      "input.jsonl": "37543d8dd9559bf199b8c1ab48d1cbe189b2002539d67c23d8c20af7e020ca30",
+      "manual_corrections.json": "becf5728c679c8ad9787ec06e6760094ce59c713aaea6d21cd889885bb8c409d",
+      "output.jsonl": "60bb5a44607846bd23f0e4bb234c49f078482b74e3c98edd0bbb52d450ade915",
+      "validated_tokens.jsonl": "1701e66bfe6345cf973ae3516dbffa82828176f751f72b3af17259ea06820e9c"
+    },
+    "corrections": {
+      "ടമുഎ": {"original": "Tamu'e", "corrected": "tamue"},
+      "മഅ്്റൂഹഫ്": {"original": "ma'ruf", "corrected": "maruf"},
+      "മയ്റൂഹ്": {"original": "Mayrooh്", "corrected": "mayrooh"},
+      "മൻബുറഹ്ത്ത്": {
+        "original": "manburahthth്",
+        "corrected": "manburahthth"
+      },
+      "റ്ൃസിൻ": {"original": "Rrusiൻ", "corrected": "rrusin"}
+    }
+  },
+  "lookup": {
+    "keys": 399512,
+    "tied_keys_withheld": 12,
+    "downloadable": false
+  }
+}

@@ -60,6 +60,28 @@ MAX_RATIO = 4.0
 
 #: Per-language source corpus, its columns, and the convention it speaks.
 CORPORA = {
+    "urdu": {
+        "path": None,
+        "source": "instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz",
+        "native": "urdu",
+        "latin": "english",
+        "convention": "muse-contributor-urdu",
+        "subdir": "urdu_to_english",
+    },
+    "kannada": {
+        "path": "data/kannada.csv.gz",
+        "native": "kannada",
+        "latin": "english",
+        "convention": "roll",
+        "subdir": "kannada_to_english",
+    },
+    "malayalam": {
+        "path": "data/malayalam.csv.gz",
+        "native": "malayalam",
+        "latin": "english",
+        "convention": "roll",
+        "subdir": "malayalam_to_english",
+    },
     "bengali": {
         "path": None,
         "source": "eroll_transliteration/data/bengali.csv.gz",
@@ -331,7 +353,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"{args.lang}: {len(table):,} keys -> {out}")
     print(f"  contested keys (>1 candidate, modal vote applied): {contested:,}")
-    print(f"  keys left to the model (vote tied, no majority): {undecided:,}")
+    print(f"  keys left out (vote tied, no majority): {undecided:,}")
     if args.eval_clean:
         print(f"  withheld as eval sources: {withheld:,}")
     print(f"  size: {size / 1e6:.2f} MB  convention: {spec['convention']}")

@@ -1,4 +1,4 @@
-"""Batch-mode LLM transliteration via provider Batch APIs (LiteLLM).
+"""Batch-mode LLM transliteration via provider Batch APIs (batchlane).
 
 The synchronous :class:`~indicate.llm_indic.IndicLLMTransliterator` issues one
 ``litellm.completion`` call per request. For transliterating the millions of unique
@@ -16,10 +16,12 @@ rather than resubmitting finished work:
 * ``checkpoint_path + ".batchstate.json"`` -- in-flight batch ids and the
   ``custom_id -> [tokens]`` mapping needed to align results back to tokens.
 
-Provider support is LiteLLM's batch support: **openai, azure, vertex_ai, bedrock,
-vllm** -- *not* native Anthropic. To use Claude in batch mode, go through Bedrock
-(``provider="bedrock"``, model ``"anthropic.claude-sonnet-4-6"``) or add a native
-Anthropic ``messages.batches`` adapter later. The default provider is ``openai``.
+Provider submission, request limits, polling, and response normalization use
+``batchlane``. Transliteration prompts, local fallback, result validation, and
+per-token retries remain here. The submission journal at
+``checkpoint_path + ".batchlane.jsonl"`` records provider handles; the state file
+also saves the exact prompts before submission so a restart does not regenerate
+them. Use one process per checkpoint.
 
 **The cheapest request is the one you do not send.** Before submitting anything,
 :func:`submit_transliteration_batches` runs the local part of ``engine`` --
@@ -48,13 +50,14 @@ from __future__ import annotations
 
 import itertools
 import json
+import os
 import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
-import litellm
+import batchlane as bl
 
 from .llm_indic import IndicLLMTransliterator
 from .logging import get_logger
@@ -66,7 +69,6 @@ logger = get_logger()
 
 DEFAULT_GROUP_SIZE = 25
 DEFAULT_MAX_REQUESTS_PER_BATCH = 50_000
-BATCH_ENDPOINT = "/v1/chat/completions"
 
 #: Answer from the table first, submit only what it declines.
 DEFAULT_BATCH_ENGINE: tuple[str, ...] = ("lookup", "llm")
@@ -79,11 +81,13 @@ DEFAULT_BATCH_ENGINE: tuple[str, ...] = ("lookup", "llm")
 class BatchJob:
     """One submitted batch (a provider batch id + the tokens it covers)."""
 
-    batch_id: str
-    input_file_id: str
+    handle: str
     custom_id_to_tokens: dict[str, list[str]]
     status: str = "submitted"  # "submitted" | "done"
-    output_file_id: str | None = None
+
+    @property
+    def batch_id(self) -> str:
+        return bl.BatchHandle.from_json(self.handle).job_id
 
 
 @dataclass
@@ -99,6 +103,10 @@ class BatchState:
     use_few_shot: bool
     jobs: list[BatchJob] = field(default_factory=list)
     submitted_at: float | None = None
+    requests: list[dict[str, Any]] = field(default_factory=list)
+    groups: dict[str, list[str]] = field(default_factory=dict)
+    completion_window: str | None = None
+    max_requests_per_batch: int = DEFAULT_MAX_REQUESTS_PER_BATCH
 
 
 def _state_path(checkpoint_path: Path) -> Path:
@@ -106,10 +114,23 @@ def _state_path(checkpoint_path: Path) -> Path:
 
 
 def _save_state(checkpoint_path: Path, state: BatchState) -> None:
-    data = asdict(state)
-    _state_path(checkpoint_path).write_text(
-        json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    path = _state_path(checkpoint_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", dir=path.parent, delete=False, encoding="utf-8"
+    ) as handle:
+        temporary = Path(handle.name)
+        try:
+            json.dump(asdict(state), handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        except BaseException:
+            temporary.unlink(missing_ok=True)
+            raise
+    try:
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _load_state(checkpoint_path: Path) -> BatchState | None:
@@ -117,18 +138,8 @@ def _load_state(checkpoint_path: Path) -> BatchState | None:
     if not path.exists():
         return None
     data = json.loads(path.read_text(encoding="utf-8"))
-    jobs = [BatchJob(**job) for job in data.get("jobs", [])]
-    return BatchState(
-        provider=data["provider"],
-        model=data["model"],
-        source_lang=data["source_lang"],
-        target_lang=data["target_lang"],
-        group_size=data["group_size"],
-        temperature=data["temperature"],
-        use_few_shot=data["use_few_shot"],
-        jobs=jobs,
-        submitted_at=data.get("submitted_at"),
-    )
+    data["jobs"] = [BatchJob(**job) for job in data["jobs"]]
+    return BatchState(**data)
 
 
 # --------------------------------------------------------------------------- #
@@ -269,264 +280,93 @@ def _make_transliterator(
     )
 
 
-def _content_to_text(content) -> str:
-    """Normalise litellm.file_content's return value to a UTF-8 string."""
-    if isinstance(content, (bytes, bytearray)):
-        return bytes(content).decode("utf-8")
-    if isinstance(content, str):
-        return content
-    for attr in ("text", "content"):
-        value = getattr(content, attr, None)
-        if isinstance(value, (bytes, bytearray)):
-            return bytes(value).decode("utf-8")
-        if isinstance(value, str):
-            return value
-    return str(content)
+def _journal_path(checkpoint_path: Path) -> Path:
+    return Path(str(checkpoint_path) + ".batchlane.jsonl")
 
 
-def _parse_output_jsonl(content) -> dict[str, str]:
-    """Map each request's ``custom_id`` to the model's text output.
-
-    Output lines follow the OpenAI batch schema (``custom_id``,
-    ``response.body.choices[0].message.content``, ``error``).
-    """
-    results: dict[str, str] = {}
-    for line in _content_to_text(content).splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        record = json.loads(line)
-        custom_id = record.get("custom_id")
-        if not custom_id or record.get("error"):
-            continue
-        body = (record.get("response") or {}).get("body") or {}
-        choices = body.get("choices") or []
-        if not choices:
-            continue
-        message = choices[0].get("message") or {}
-        results[custom_id] = message.get("content") or ""
-    return results
+def _clear_submission(checkpoint_path: Path) -> None:
+    # Remove the journal first: if interrupted, the completed state still
+    # prevents another submission. Reversing this order could reuse old jobs.
+    _journal_path(checkpoint_path).unlink(missing_ok=True)
+    _state_path(checkpoint_path).unlink(missing_ok=True)
 
 
-# --------------------------------------------------------------------------- #
-# Provider dispatch: OpenAI (litellm) vs native Gemini batch
-# --------------------------------------------------------------------------- #
-_GEMINI_PROVIDERS = {"gemini", "google", "google_ai_studio"}
-
-
-def _gemini_client():
-    from google import genai
-
-    return genai.Client()  # reads GEMINI_API_KEY / GOOGLE_API_KEY from env
-
-
-def _gemini_model_id(model: str) -> str:
-    """Strip a litellm-style 'gemini/' prefix for the native google-genai SDK."""
-    return model.split("/", 1)[1] if model.startswith("gemini/") else model
-
-
-def _gemini_request_line(
-    custom_id: str, messages: list[dict], temperature: float
-) -> dict:
-    """Convert OpenAI-style [system,user] messages to a Gemini batch JSONL line.
-
-    No max_output_tokens cap: gemini-2.5-flash spends output tokens on "thinking", so a
-    tight cap truncates the answer. thinking_budget=0 disables reasoning for this simple
-    task -- cheaper, faster, and avoids truncation.
-    """
-    system = next((m["content"] for m in messages if m.get("role") == "system"), "")
-    user = next((m["content"] for m in messages if m.get("role") == "user"), "")
-    return {
-        "key": custom_id,
-        "request": {
-            "system_instruction": {"parts": [{"text": system}]},
-            "contents": [{"role": "user", "parts": [{"text": user}]}],
-            "generation_config": {
-                "temperature": temperature,
-                "thinking_config": {"thinking_budget": 0},
-            },
-        },
-    }
-
-
-def _parse_gemini_jsonl(content) -> dict[str, str]:
-    """Map each request's ``key`` to the model text (google-genai batch output)."""
-    results: dict[str, str] = {}
-    for line in _content_to_text(content).splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        record = json.loads(line)
-        key = record.get("key")
-        if not key or record.get("error"):
-            continue
-        candidates = (record.get("response") or {}).get("candidates") or []
-        if not candidates:
-            continue
-        parts = (candidates[0].get("content") or {}).get("parts") or []
-        results[key] = "".join(p.get("text", "") for p in parts)
-    return results
-
-
-def _write_jsonl(records: list[dict]) -> Path:
-    tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 - delete=False, path returned
-        "w", suffix=".jsonl", delete=False, encoding="utf-8"
+def _ensure_submitted(
+    checkpoint_path: Path, state: BatchState, api_key: str | None = None
+) -> None:
+    if state.submitted_at is not None or not state.requests:
+        return
+    lines = [bl.BatchLine(**request) for request in state.requests]
+    plan = bl.plan(lines, max_requests_per_batch=state.max_requests_per_batch)
+    handles = bl.submit_all(
+        lines,
+        checkpoint=_journal_path(checkpoint_path),
+        api_key=api_key,
+        window=state.completion_window,
+        max_requests_per_batch=state.max_requests_per_batch,
     )
-    for record in records:
-        tmp.write(json.dumps(record, ensure_ascii=False) + "\n")
-    tmp.close()
-    return Path(tmp.name)
-
-
-def _submit_openai_jobs(
-    state,
-    transliterator,
-    model,
-    custom_id_to_tokens,
-    examples,
-    temperature,
-    completion_window,
-    max_requests_per_batch,
-):
-    requests = [
-        {
-            "custom_id": cid,
-            "method": "POST",
-            "url": BATCH_ENDPOINT,
-            "body": {
-                "model": model,
-                "messages": transliterator.build_group_messages(group, examples),
-                "temperature": temperature,
-                "max_completion_tokens": transliterator.default_max_tokens_for(group),
+    state.jobs = [
+        BatchJob(
+            handle=handle.to_json(),
+            custom_id_to_tokens={
+                line.custom_id: state.groups[line.custom_id] for line in chunk
             },
-        }
-        for cid, group in custom_id_to_tokens.items()
+        )
+        for handle, chunk in zip(handles, plan.chunks, strict=True)
     ]
-    for request_chunk in _chunk(requests, max_requests_per_batch):
-        path = _write_jsonl(request_chunk)
-        try:
-            with path.open("rb") as handle:
-                # litellm types the sync variants as possibly-Coroutine
-                file_obj = cast(
-                    "Any",
-                    litellm.create_file(
-                        file=handle, purpose="batch", custom_llm_provider=state.provider
-                    ),
-                )
-            batch = cast(
-                "Any",
-                litellm.create_batch(
-                    completion_window=completion_window,
-                    endpoint=BATCH_ENDPOINT,
-                    input_file_id=file_obj.id,
-                    custom_llm_provider=state.provider,
-                ),
-            )
-        finally:
-            path.unlink()
-        chunk_map = {
-            r["custom_id"]: custom_id_to_tokens[r["custom_id"]] for r in request_chunk
-        }
-        state.jobs.append(
-            BatchJob(
-                batch_id=batch.id,
-                input_file_id=file_obj.id,
-                custom_id_to_tokens=chunk_map,
-            )
-        )
-        logger.info(
-            "Submitted OpenAI batch %s (%d requests)", batch.id, len(request_chunk)
-        )
+    state.submitted_at = time.time()
+    _save_state(checkpoint_path, state)
 
 
-def _submit_gemini_jobs(
-    state,
-    transliterator,
-    model,
-    custom_id_to_tokens,
-    examples,
-    temperature,
-    max_requests_per_batch,
-):
-    from google.genai import types
-
-    client = _gemini_client()
-    gmodel = _gemini_model_id(model)
-    requests = [
-        _gemini_request_line(
-            cid,
-            transliterator.build_group_messages(group, examples),
-            temperature,
-        )
-        for cid, group in custom_id_to_tokens.items()
-    ]
-    for request_chunk in _chunk(requests, max_requests_per_batch):
-        path = _write_jsonl(request_chunk)
-        try:
-            uploaded = client.files.upload(
-                file=path, config=types.UploadFileConfig(mime_type="jsonl")
-            )
-            if not uploaded.name:
-                raise RuntimeError("Gemini file upload returned no name")
-            job = client.batches.create(model=gmodel, src=uploaded.name)
-            if not job.name:
-                raise RuntimeError("Gemini batch create returned no name")
-        finally:
-            path.unlink()
-        chunk_map = {r["key"]: custom_id_to_tokens[r["key"]] for r in request_chunk}
-        state.jobs.append(
-            BatchJob(
-                batch_id=job.name,
-                input_file_id=uploaded.name,
-                custom_id_to_tokens=chunk_map,
-            )
-        )
-        logger.info(
-            "Submitted Gemini batch %s (%d requests)", job.name, len(request_chunk)
-        )
-
-
-def _poll_job(job: BatchJob, provider: str) -> tuple[str, dict[str, str]]:
-    """Poll one job.
-
-    Returns (status, by_custom_id); status in completed/running/failed.
-    """
-    if provider in _GEMINI_PROVIDERS:
-        client = _gemini_client()  # keep a ref for the whole call (httpx lifecycle)
-        info = client.batches.get(name=job.batch_id)
-        state_name = getattr(info.state, "name", str(info.state))
-        if state_name == "JOB_STATE_SUCCEEDED":
-            dest = getattr(info, "dest", None)
-            fname = getattr(dest, "file_name", None) if dest else None
-            if not fname:
-                return "failed", {}
-            return "completed", _parse_gemini_jsonl(client.files.download(file=fname))
-        if state_name in (
-            "JOB_STATE_FAILED",
-            "JOB_STATE_CANCELLED",
-            "JOB_STATE_EXPIRED",
-        ):
-            return "failed", {}
+def _poll_job(job: BatchJob, api_key: str | None = None) -> tuple[str, dict[str, str]]:
+    handle = bl.BatchHandle.from_json(job.handle)
+    status = bl.status(handle, api_key=api_key)
+    if not status.is_terminal:
         return "running", {}
-
-    retrieved = litellm.retrieve_batch(
-        batch_id=job.batch_id, custom_llm_provider=cast("Any", provider)
-    )
-    status = getattr(retrieved, "status", None)
-    output_file_id = getattr(retrieved, "output_file_id", None)
-    if status == "completed" and output_file_id:
-        job.output_file_id = output_file_id
-        return "completed", _parse_output_jsonl(
-            litellm.file_content(file_id=output_file_id, custom_llm_provider=provider)
-        )
-    if status in ("failed", "cancelled", "expired"):
+    if status.state != "succeeded":
         return "failed", {}
-    return "running", {}
+    answers = {}
+    seen = set()
+    for result in bl.results(handle, api_key=api_key):
+        if result.custom_id not in job.custom_id_to_tokens or result.custom_id in seen:
+            raise ValueError(
+                f"Unexpected or duplicate batch result ID: {result.custom_id!r}"
+            )
+        seen.add(result.custom_id)
+        answer = bl.answer_text(result)
+        if answer:
+            answers[result.custom_id] = answer
+    return "completed", answers
 
 
-# --------------------------------------------------------------------------- #
-# Submit
-# --------------------------------------------------------------------------- #
+def _batch_provider(provider: str) -> str:
+    return (
+        "gemini" if provider in {"google", "google_ai_studio", "gemini"} else provider
+    )
+
+
+def _validate_resume(state: BatchState, transliterator: IndicLLMTransliterator) -> None:
+    requested = (
+        transliterator.source_lang,
+        transliterator.target_lang,
+        transliterator.model,
+        transliterator.temperature,
+        _batch_provider(transliterator.provider),
+    )
+    saved = (
+        state.source_lang,
+        state.target_lang,
+        state.model,
+        state.temperature,
+        _batch_provider(state.provider),
+    )
+    if requested != saved:
+        raise ValueError(
+            "The batch checkpoint belongs to a different language pair, "
+            "provider, model, or temperature."
+        )
+
+
 def submit_transliteration_batches(
     tokens: list[str],
     source_lang: str,
@@ -537,7 +377,7 @@ def submit_transliteration_batches(
     model: str | None = None,
     api_key: str | None = None,
     group_size: int = DEFAULT_GROUP_SIZE,
-    completion_window: str = "24h",
+    completion_window: str | None = None,
     use_few_shot: bool = True,
     temperature: float = 0.3,
     max_requests_per_batch: int = DEFAULT_MAX_REQUESTS_PER_BATCH,
@@ -553,6 +393,8 @@ def submit_transliteration_batches(
     ``engine=("llm",)`` to send everything to the provider.
     """
     checkpoint_path = Path(checkpoint_path)
+    if group_size < 1 or max_requests_per_batch < 1:
+        raise ValueError("group_size and max_requests_per_batch must be positive")
     resolved = _load_resolved(checkpoint_path)
 
     seen: set[str] = set()
@@ -611,52 +453,52 @@ def submit_transliteration_batches(
                 len(todo),
             )
 
-    state = _load_state(checkpoint_path) or BatchState(
+    state = _load_state(checkpoint_path)
+    if state is not None:
+        _validate_resume(state, transliterator)
+        _ensure_submitted(checkpoint_path, state, api_key)
+        return state
+
+    state = BatchState(
         provider=provider,
         model=model,
-        source_lang=source_lang,
-        target_lang=target_lang,
+        source_lang=transliterator.source_lang,
+        target_lang=transliterator.target_lang,
         group_size=group_size,
         temperature=temperature,
         use_few_shot=use_few_shot,
+        completion_window=completion_window,
+        max_requests_per_batch=max_requests_per_batch,
     )
-
     if not todo:
         _save_state(checkpoint_path, state)
         return state
 
+    lane = _batch_provider(provider)
+    bl.get_adapter(lane)
     examples = transliterator.generate_few_shot_examples() if use_few_shot else []
-
-    # One request per group of tokens; custom_id maps back to the group.
-    custom_id_to_tokens: dict[str, list[str]] = {}
+    bare_model = model.removeprefix(f"{lane}/")
+    batch_model = f"{lane}/{bare_model}"
     for index, group in enumerate(_chunk(todo, group_size)):
-        custom_id_to_tokens[f"grp-{index}"] = group
-
-    if provider in _GEMINI_PROVIDERS:
-        _submit_gemini_jobs(
-            state,
-            transliterator,
-            model,
-            custom_id_to_tokens,
-            examples,
-            temperature,
-            max_requests_per_batch,
+        custom_id = f"grp-{index}"
+        params: dict[str, Any] = {"temperature": temperature}
+        if lane == "gemini":
+            params["thinking"] = {"type": "disabled", "budget_tokens": 0}
+        else:
+            params["max_completion_tokens"] = transliterator.default_max_tokens_for(
+                group
+            )
+        request = bl.BatchLine(
+            custom_id,
+            batch_model,
+            transliterator.build_group_messages(group, examples),
+            params,
         )
-    else:
-        _submit_openai_jobs(
-            state,
-            transliterator,
-            model,
-            custom_id_to_tokens,
-            examples,
-            temperature,
-            completion_window,
-            max_requests_per_batch,
-        )
+        state.requests.append(asdict(request))
+        state.groups[custom_id] = group
 
-    if state.submitted_at is None:
-        state.submitted_at = time.time()
     _save_state(checkpoint_path, state)
+    _ensure_submitted(checkpoint_path, state, api_key)
     return state
 
 
@@ -667,6 +509,7 @@ def collect_transliteration_batches(
     checkpoint_path: str | Path,
     *,
     transliterator: IndicLLMTransliterator | None = None,
+    api_key: str | None = None,
 ) -> tuple[bool, dict[str, str]]:
     """Poll in-flight batches once and append any completed results.
 
@@ -685,16 +528,18 @@ def collect_transliteration_batches(
             state.target_lang,
             state.provider,
             state.model,
-            None,
+            api_key,
             state.temperature,
         )
+    _validate_resume(state, transliterator)
+    _ensure_submitted(checkpoint_path, state, api_key)
 
     all_done = True
     newly_resolved: dict[str, str] = {}
     for job in state.jobs:
         if job.status == "done":
             continue
-        status, by_custom_id = _poll_job(job, state.provider)
+        status, by_custom_id = _poll_job(job, api_key)
 
         if status == "completed":
             for custom_id, group in job.custom_id_to_tokens.items():
@@ -750,7 +595,7 @@ def transliterate_tokens_batched(
     model: str | None = None,
     api_key: str | None = None,
     group_size: int = DEFAULT_GROUP_SIZE,
-    completion_window: str = "24h",
+    completion_window: str | None = None,
     use_few_shot: bool = True,
     temperature: float = 0.3,
     poll_interval: float = 60.0,
@@ -799,7 +644,7 @@ def transliterate_tokens_batched(
     def _poll_to_done() -> tuple[dict[str, str], bool]:
         while True:
             done, resolved = collect_transliteration_batches(
-                checkpoint_path, transliterator=transliterator
+                checkpoint_path, transliterator=transliterator, api_key=api_key
             )
             if done:
                 return resolved, True
@@ -826,7 +671,10 @@ def transliterate_tokens_batched(
             _append_resolved(checkpoint_path, answered)
         return answered
 
-    if _load_state(checkpoint_path) is None:
+    existing = _load_state(checkpoint_path)
+    if existing is not None:
+        _validate_resume(existing, transliterator)
+    if existing is None:
         submit_transliteration_batches(
             unique_tokens,
             source_lang,
@@ -861,7 +709,7 @@ def transliterate_tokens_batched(
     if not done:
         logger.warning("max_wait exceeded; rerun to resume from checkpoint")
         return resolved
-    _state_path(checkpoint_path).unlink(missing_ok=True)
+    _clear_submission(checkpoint_path)
 
     unresolved = [token for token in unique_tokens if token not in resolved]
     resolved.update(_resolve_tail(unresolved))
@@ -902,7 +750,7 @@ def transliterate_tokens_batched(
         if not done:
             logger.warning("max_wait exceeded during requeue; rerun to resume")
             return resolved
-        _state_path(checkpoint_path).unlink(missing_ok=True)
+        _clear_submission(checkpoint_path)
         unresolved = [token for token in unique_tokens if token not in resolved]
         resolved.update(_resolve_tail(unresolved))
         unresolved = [token for token in unique_tokens if token not in resolved]

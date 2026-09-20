@@ -42,9 +42,11 @@ test-e2e: ## Build the wheel, install it, run the console script
 test-live: ## Reach Hugging Face and check the model repo has what we claim
 	uv run pytest -m live
 
-build-lookup: ## Build both lookup tables from the committed corpora
+build-lookup: ## Build local lookup tables from the committed corpora
 	uv run --group train python training/build_lookup.py --lang hindi
 	uv run --group train python training/build_lookup.py --lang punjabi
+	uv run --group train python training/build_lookup.py --lang malayalam
+	uv run --group train python training/build_lookup.py --lang kannada
 
 lint: ## Run linter
 	uv run ruff check .

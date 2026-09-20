@@ -1,0 +1,70 @@
+{
+  "source": "eroll_transliteration/data/kannada.csv.gz",
+  "source_sha256": "aacc260bea092f7325a4bdd6271dc9ed005daba3f68d2ba89974a8a383a398a0",
+  "copied_sha256": "aacc260bea092f7325a4bdd6271dc9ed005daba3f68d2ba89974a8a383a398a0",
+  "rows": 680219,
+  "columns": [
+    "kannada",
+    "english"
+  ],
+  "method": "Existing Kannada corpus plus structurally screened Muse Spark 1.3 Contributor isolated-token harvest.",
+  "scope": "Word spellings, including OCR fragments; not independently validated name accuracy.",
+  "lookup": {
+    "path": "indicate/data/kannada_to_english/lookup.tsv.gz",
+    "sha256": "7aeab98dca67cc4006783e6d4ed1da3b7b10768db34b2c76f04a75ca7ef5b018",
+    "keys": 673231,
+    "contested_keys": 0,
+    "tied_keys": 0,
+    "downloadable": false
+  },
+  "muse_spark_2017": {
+    "original_sha256": "aacc260bea092f7325a4bdd6271dc9ed005daba3f68d2ba89974a8a383a398a0",
+    "original_rows": 632699,
+    "added_rows": 47520,
+    "rows": 680219,
+    "sha256": "5275ae09c264cd4821e1551dac316b5577da5e53425b7bc602ff6c0d337d1498",
+    "harvest_audit": {
+      "requests": 1986,
+      "items": 49778,
+      "accepted": 48149,
+      "rejected": {
+        "syllable-structure-mismatch": 1535,
+        "non-ascii-word": 93,
+        "model-abstained": 1
+      },
+      "estimated_cost_usd": 0.310046164,
+      "prompt_tokens": 1056556,
+      "completion_tokens": 1222942,
+      "peak_completion_tokens": 1828,
+      "complete": true,
+      "reasoning_tokens": 874454,
+      "cached_input_tokens": 410182,
+      "reviewed_response_suffixes": [
+        {
+          "file": "response_0276.json",
+          "original_content_sha256": "873dcc1c28f8cbdf69d6572bdd920b4642e3ff0ddef54ec10a41caa1c550284a",
+          "reason": "Provider repeated answers1-20 twice, then supplied a complete exact numbered suffix1-25. Prefix answers1-19 agree with final suffix; use final source text without alterations. Raw provider response preserved; no retry."
+        },
+        {
+          "file": "response_1049.json",
+          "original_content_sha256": "0596b9b47fda8934310ad577a736a52c209adf502c382e7539338d6649091095",
+          "reason": "Provider repeated answers1-19 then emitted a complete final1-25list. Use exact final suffix; original provider content preserved. No retry."
+        },
+        {
+          "file": "response_1129.json",
+          "original_content_sha256": "0a73e8af50426ee57385666d5c65999a2c620ea4b1e97b42015b082622a7fc9b",
+          "reason": "Repeated partial1-11lists and explanatory text precede a complete final1-25list. Exact final suffix reviewed; numbering accepts optional spaces. Original response preserved, no retry."
+        }
+      ],
+      "paid_retries": 0,
+      "new_tokens": 49631,
+      "reused_pilot_tokens": 147,
+      "validated_tokens_sha256": "9ba91d3059d8ebea2abc0ef8c1fb07ac4bd491fa9c549a408de0ff3c99d8e3b2",
+      "cost_scope": "New harvest calls only; reused pilot tokens priced in earlier pilot audit. Usage-priced estimate, not provider invoice."
+    },
+    "existing_native_keys_skipped": 0,
+    "canonicalization": "Newly promoted values (additions and replacements): native suffix ಗೌಡ with gauda/gouda becomes gowda, the majority existing compound spelling (5946 gowda,1143 gauda,125 gouda). Revalidated.",
+    "quality": "Structurally screened LLM spellings; not independently verified name accuracy. Existing valid pairs unchanged; unusable entries replaced with screened candidates and individually recorded."
+  },
+  "current_sha256": "5275ae09c264cd4821e1551dac316b5577da5e53425b7bc602ff6c0d337d1498"
+}

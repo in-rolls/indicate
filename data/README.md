@@ -90,6 +90,49 @@ uv run --group train python training/build_lookup.py --lang bengali \
   --corpus ../eroll_transliteration/data/bengali.csv.gz
 ```
 
+## J&K Hindi review handoff
+
+The September 12, 2026 instate review compares 5,857 selected native tokens with
+this Hindi corpus and `../eroll_transliteration/data/hindi.csv.gz`. A shared Latin
+candidate is evidence of overlap, not necessarily a unique answer. Of 2,838
+matching candidate sets, 1,321 have a single matching candidate and 1,517 contain
+alternatives. Neither figure measures transliteration accuracy.
+
+The completed Muse Spark 1.3 Contributor diagnostic covers all 5,857 tokens:
+3,031 primary answers match the historical eroll candidate, 605 list it as an
+alternative, 542 differ and 1,679 have no eroll candidate. Responses flag 503
+unusual source spellings and 33 uncertain readings. These comparisons are not
+verified transliteration accuracy and must not become training labels or test
+references without independent validation.
+
+Instate's candidate map retains 3,503 native forms, covering 913,449 selected
+occurrences in the corrected handoff. It withholds source warnings, insufficient
+corroboration and rows that fail its local rule requiring at least two ASCII
+letters in every returned Latin form. The high-frequency `सिहं` remains withheld:
+the response gave literal `Sihan` and alternative `Singh`, while font checks
+confirm the inspected source sequence as written. The intended conventional name
+is unresolved. A historical translation such as `बेसिन` → `washbasin` also shows
+why a corpus candidate is insufficient as a name reference.
+
+The corpus and model artifacts are unchanged. The prompt, responses, row
+comparison, candidate map and cost record are retained in the sibling instate
+workspace under `data/jk_recovery/muse_review/`; `hindi_full/summary.json` records
+the complete diagnostic. The full candidate handoff preserves native selections
+and evidence exactly; its linguistic accuracy remains unmeasured.
+
+A separate check uses the original, human-annotated Google Dakshina Hindi
+lexicons. All three splits were verified against the publisher's archive; the
+existing local test file matches exactly. Of the retained candidate's 3,503 native
+forms, 1,103 have an exact attested Latin alternative, covering 856,370 occurrences.
+Fifty-nine forms covering 1,096 occurrences have other attested alternatives; 2,341
+forms covering 55,983 occurrences have no reference entry. Missing exact matches
+are review cases, not automatic errors. The lexicons are not exhaustive, their
+Wikipedia overlap is not representative of J&K names, and model training exposure
+is unknown. This is lexical support, not untouched test accuracy. See instate's
+`data/jk_recovery/muse_review/hindi_full/dakshina_support_summary.json` and the
+[dataset documentation](https://github.com/google-research-datasets/dakshina).
+The source corpus, candidate map and model artifacts remain unchanged.
+
 ## Reproduce / download
 
 ```bash
@@ -106,3 +149,52 @@ python training/train.py --data data/hi_train_v2.csv.gz \
     --model-dir indicate/data/hindi_to_english --rebuild-vocab
 python training/eval.py --model hindi --test-file data/eval/hi_blended.tsv
 ```
+
+A convention review of the original 60 differing reference cases passed all 12
+synthetic controls. It classified 59 as compatible conventions and one as
+uncertain. The reviewed instate candidate changes only `बख्शी` from `bakshi` to
+`bakhshi`, supported by both a human-attested alternative and the earlier blind
+model answer. Exactly 25 Latin-name occurrences change; native selections,
+abstentions and household/relative evidence remain unchanged. This is a reviewed
+candidate map change, not a source-corpus or model update. The current handoff is
+`data/jk_recovery/hindi_reviewed_candidate/` in instate.
+
+## J&K Urdu handoff
+
+Instate's final calibrated 2018 Urdu recovery preserves 4,608,102 active assembly
+records. Upnaam selects 970,947 corroborated native surname occurrences from
+4,399 distinct selected tokens and abstains on 3,637,155 records. The source
+recovery matched 1,259 of 1,322 hidden word controls exactly (95.23%); this
+measures transcription, not surname or pronunciation accuracy.
+
+The shared lookup corpus remains in instate at
+`data/jk_recovery/muse_review/urdu_all_tokens/`:
+
+- `urdu.csv.gz` contains eligible native/Latin pairs;
+- `transliterations.parquet` records completed decisions, alternatives, evidence
+  and exclusions;
+- `provenance.json` records review batches and the selection policy; and
+- `validation.json` records corpus hashes and selected-handoff coverage.
+
+The corpus contains 45,427 reviewed token types and 27,221 eligible pairs. The
+final 164-type selected-token review adds 1,450 mappings to the prior 25,771-pair
+map. All 4,399 selected Urdu types are mapped, covering all 970,947 selected
+occurrences. Across all accepted decoded own and relative names, eligible pairs
+cover 5,581,174 of 6,168,112 token occurrences (90.48%). Coverage does not measure
+transcription or pronunciation accuracy.
+
+Build the installed table with:
+
+```sh
+python training/build_lookup.py --lang urdu \
+  --corpus ../instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz
+```
+
+The resulting `lookup.tsv.gz` has 27,221 keys, no contested keys and no ties. Its
+SHA-256 is
+`570206fa75d4c12169bd7d09aa081ce0b268f8208d50fa7c5aaa622c5f862950`.
+The corpus SHA-256 is
+`35be72079f8a226db1e9794ac91fa3c9f921fc673287c93450f23514502cd373`.
+No corpus copy is stored in indicate, and no API call occurs during lookup use.
+Model-only mappings remain silver annotations; quarantined, warned and unsupported
+decisions stay outside the table.

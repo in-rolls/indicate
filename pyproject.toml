@@ -132,7 +132,10 @@ addopts = [
 ]
 log_level = "INFO"
 xfail_strict = true
-filterwarnings = ["error"]
+filterwarnings = [
+    "error",
+    'ignore:codecs\.open\(\) is deprecated\. Use open\(\) instead\.:DeprecationWarning',
+]
 markers = [
     "slow: slow tests (deselect with '-m \"not slow\"')",
     "live: reaches the network; deselected by default, run with '-m live'",

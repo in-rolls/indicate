@@ -83,6 +83,22 @@ class TestWeightedCorpus(unittest.TestCase):
             self.assertEqual(contested, 1)
             self.assertEqual(undecided, 0)
 
+    def test_weighted_tie_is_omitted(self):
+        from training.build_lookup import build_table
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "weighted.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["gujarati", "english", "count"])
+                writer.writerow(["પટેલ", "patel", 20])
+                writer.writerow(["પટેલ", "patal", 20])
+            table, contested, undecided = build_table(corpus, "gujarati", "english")
+
+            self.assertEqual(table, {})
+            self.assertEqual(contested, 1)
+            self.assertEqual(undecided, 1)
+
 
 class TestExternalCorpus(unittest.TestCase):
     def test_bengali_compiles_without_copying_the_source_corpus(self):

@@ -83,6 +83,18 @@ in `eroll_transliteration` with its collection and provenance pipeline; it is
 not copied into this repository or package. The compiled table header records
 the source corpus's SHA-256 for an exact, independently checkable build link.
 
+**Gujarati lookup**
+
+A controlled `gujarati,english` token corpus can be compiled without copying it
+into this repository:
+
+```bash
+uv run --group train python training/build_lookup.py --lang gujarati \
+  --corpus /path/to/gujarati.csv.gz
+```
+
+The compiled lookup is local-only and its header records the corpus SHA-256.
+
 Rebuild the published artifact without copying the corpus:
 
 ```bash

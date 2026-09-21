@@ -76,6 +76,7 @@ FORMAT_VERSION = 1
 SHIPPED = frozenset(
     {
         "bengali_to_english",
+        "gujarati_to_english",
         "hindi_to_english",
         "punjabi_to_english",
         "malayalam_to_english",

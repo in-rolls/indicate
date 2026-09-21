@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 import pytest
@@ -72,21 +73,23 @@ class TestFileHandling(unittest.TestCase):
     def test_a_byte_order_mark_is_stripped_not_transliterated(self):
         # Exercises _read_text_input's BOM branch end to end. The old test
         # asserted `result.output is not None`, which a crash also satisfies.
-        with self.runner.isolated_filesystem():
-            with Path("bom.txt").open("wb") as handle:
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "bom.txt"
+            with source.open("wb") as handle:
                 handle.write(b"\xef\xbb\xbf" + HINDI.encode("utf-8"))
             result = self.runner.invoke(
-                cli, ["transliterate", "--from", "hindi", "--input", "bom.txt"]
+                cli, ["transliterate", "--from", "hindi", "--input", str(source)]
             )
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn(ROMAN, result.output.lower())
 
     def test_undecodable_bytes_produce_a_clean_error_not_a_traceback(self):
-        with self.runner.isolated_filesystem():
-            with Path("corrupted.txt").open("wb") as handle:
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "corrupted.txt"
+            with source.open("wb") as handle:
                 handle.write(b"\xff\xfe\x00\x00")
             result = self.runner.invoke(
-                cli, ["transliterate", "--from", "hindi", "--input", "corrupted.txt"]
+                cli, ["transliterate", "--from", "hindi", "--input", str(source)]
             )
         # Whatever it does, it must not surface a decode traceback.
         self.assertNotIsInstance(result.exception, UnicodeDecodeError)
@@ -101,8 +104,9 @@ class TestFileHandling(unittest.TestCase):
     def test_writing_over_the_input_is_refused_and_the_input_survives(self):
         # This is the property the guard exists for: not that it errors, but
         # that the source file is still there afterwards.
-        with self.runner.isolated_filesystem():
-            with Path("same.txt").open("w", encoding="utf-8") as handle:
+        with TemporaryDirectory() as directory:
+            source = Path(directory) / "same.txt"
+            with source.open("w", encoding="utf-8") as handle:
                 handle.write(HINDI)
             result = self.runner.invoke(
                 cli,
@@ -111,12 +115,12 @@ class TestFileHandling(unittest.TestCase):
                     "--from",
                     "hindi",
                     "--input",
-                    "same.txt",
+                    str(source),
                     "--output",
-                    "same.txt",
+                    str(source),
                 ],
             )
-            with Path("same.txt").open(encoding="utf-8") as handle:
+            with source.open(encoding="utf-8") as handle:
                 after = handle.read()
         self.assertNotEqual(result.exit_code, 0)
         self.assertEqual(after, HINDI)

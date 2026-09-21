@@ -66,6 +66,40 @@ class TestChoose(unittest.TestCase):
         self.assertEqual(forward, backward)
 
 
+class TestWeightedCorpus(unittest.TestCase):
+    def test_count_column_preserves_aggregate_votes(self):
+        from training.build_lookup import build_table
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "weighted.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["gujarati", "english", "count"])
+                writer.writerow(["પટેલ", "patel", 20])
+                writer.writerow(["પટેલ", "patal", 1])
+            table, contested, undecided = build_table(corpus, "gujarati", "english")
+
+            self.assertEqual(table, {"પટેલ": "patel"})
+            self.assertEqual(contested, 1)
+            self.assertEqual(undecided, 0)
+
+    def test_weighted_tie_is_omitted(self):
+        from training.build_lookup import build_table
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "weighted.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["gujarati", "english", "count"])
+                writer.writerow(["પટેલ", "patel", 20])
+                writer.writerow(["પટેલ", "patal", 20])
+            table, contested, undecided = build_table(corpus, "gujarati", "english")
+
+            self.assertEqual(table, {})
+            self.assertEqual(contested, 1)
+            self.assertEqual(undecided, 1)
+
+
 class TestExternalCorpus(unittest.TestCase):
     def test_bengali_compiles_without_copying_the_source_corpus(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -180,6 +214,39 @@ class TestMalayalamCorpus(unittest.TestCase):
             self.assertEqual(table[lookup_key("സുഹൈല്‍")], "suhail")
             self.assertTrue(supports("malayalam", "english", "lookup"))
             self.assertFalse(supports("malayalam", "english", "model"))
+
+
+class TestGujaratiCorpus(unittest.TestCase):
+    def test_external_corpus_builds_an_offline_gujarati_lookup(self):
+        from indicate.languages import supports
+        from indicate.lookup import DOWNLOADABLE
+
+        with tempfile.TemporaryDirectory() as tmp:
+            corpus = Path(tmp) / "gujarati.csv.gz"
+            with gzip.open(corpus, "wt", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle)
+                writer.writerow(["gujarati", "english"])
+                writer.writerow(["પટેલ", "patel"])
+            output = Path(tmp) / "lookup.tsv.gz"
+            self.assertEqual(
+                main(
+                    [
+                        "--lang",
+                        "gujarati",
+                        "--corpus",
+                        str(corpus),
+                        "--out",
+                        str(output),
+                    ]
+                ),
+                0,
+            )
+            table = Lookup.from_path(output)
+            assert table is not None
+            self.assertEqual(table.get("પટેલ"), "patel")
+            self.assertTrue(supports("gujarati", "english", "lookup"))
+            self.assertFalse(supports("gujarati", "english", "model"))
+            self.assertNotIn("gujarati_to_english", DOWNLOADABLE)
 
 
 if __name__ == "__main__":

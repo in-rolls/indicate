@@ -79,6 +79,8 @@ class TestSupport(unittest.TestCase):
     def test_a_pair_with_no_local_model_does_not(self):
         self.assertFalse(supports("bengali", "english", "model"))
         self.assertTrue(supports("bengali", "english", "lookup"))
+        self.assertFalse(supports("gujarati", "english", "model"))
+        self.assertTrue(supports("gujarati", "english", "lookup"))
         self.assertFalse(supports("tamil", "english", "model"))
         self.assertFalse(supports("tamil", "english", "lookup"))
 

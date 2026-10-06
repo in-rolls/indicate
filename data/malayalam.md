@@ -8,4 +8,4 @@ The 2026 harvest used gpt-5.4-mini-2026-03-17 in 1,065 batch requests. Provider-
 
 Build the local table with `uv run --group train python training/build_lookup.py --lang malayalam`. The build yields 399,512 keys after normalization and alignment filtering; 12 tied keys are withheld. The table records its corpus hash. Atomic chillu letters and their consonant/virama/ZWJ encodings share lookup keys. There is no Malayalam sequence model or downloadable lookup in the pinned model repository.
 
-To refresh after another validated harvest, copy the corpus from eroll_transliteration, record its new hash and provenance here, rebuild the lookup, and run the build/lookup tests. Existing source terms still apply; the corpus and table are not included in the package wheel.
+To refresh after another validated harvest, copy the corpus from electoral_rolls_transliteration, record its new hash and provenance here, rebuild the lookup, and run the build/lookup tests. Existing source terms still apply; the corpus and table are not included in the package wheel.

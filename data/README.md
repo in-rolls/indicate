@@ -79,7 +79,7 @@ shared LLM-labeled Eastern Nagari elector-name corpus
 ```
 
 Only the compiled lookup is published. The multi-million-row source CSV stays
-in `eroll_transliteration` with its collection and provenance pipeline; it is
+in `electoral_rolls_transliteration` with its collection and provenance pipeline; it is
 not copied into this repository or package. The compiled table header records
 the source corpus's SHA-256 for an exact, independently checkable build link.
 
@@ -99,13 +99,13 @@ Rebuild the published artifact without copying the corpus:
 
 ```bash
 uv run --group train python training/build_lookup.py --lang bengali \
-  --corpus ../eroll_transliteration/data/bengali.csv.gz
+  --corpus ../electoral_rolls_transliteration/data/bengali.csv.gz
 ```
 
 ## J&K Hindi review handoff
 
 The September 12, 2026 instate review compares 5,857 selected native tokens with
-this Hindi corpus and `../eroll_transliteration/data/hindi.csv.gz`. A shared Latin
+this Hindi corpus and `../electoral_rolls_transliteration/data/hindi.csv.gz`. A shared Latin
 candidate is evidence of overlap, not necessarily a unique answer. Of 2,838
 matching candidate sets, 1,321 have a single matching candidate and 1,517 contain
 alternatives. Neither figure measures transliteration accuracy.

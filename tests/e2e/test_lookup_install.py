@@ -96,6 +96,28 @@ def test_the_installed_wheel_has_no_table_and_says_so(wheel_venv: Path, clean_en
     assert proc.stdout.strip() == "True"
 
 
+def test_complete_field_review_is_available_in_installed_wheel(wheel_venv, clean_env):
+    proc = run_python(
+        _script(
+            "from indicate.lookup import Lookup\n"
+            "table = Lookup({'राम': 'ram', 'सिहं': 'singh'}, {})\n"
+            "reviewed = table.with_overrides({'सिहं': None})\n"
+            "assert table.get_text('राम सिहं') == 'ram singh'\n"
+            "assert reviewed.get_text('राम सिहं') is None\n"
+            "assert reviewed.get_text('(राम), 12') == '(ram), 12'\n"
+            "urdu = Lookup({'علی': 'ali', 'ہُور': 'hoor'}, {})\n"
+            "assert urdu.get_text('علی، ہُور ۱۲') == 'ali، hoor ۱۲'\n"
+            "assert urdu.get_text('علی نامعلوم') is None\n"
+            "assert 'torch' not in sys.modules\n"
+            "print('complete field checks passed')\n"
+        ),
+        executable=str(venv_python(wheel_venv)),
+        cwd=wheel_venv,
+        env=clean_env,
+    )
+    assert proc.stdout.strip() == "complete field checks passed"
+
+
 def test_a_user_built_table_is_found_through_the_env_var(
     wheel_venv: Path, clean_env, real_table: Path, language: tuple
 ):

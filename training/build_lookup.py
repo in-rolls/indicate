@@ -70,7 +70,7 @@ CORPORA = {
     },
     "urdu": {
         "path": None,
-        "source": "instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz",
+        "source": "instate/data/jk_2018/urdu/urdu.csv.gz",
         "native": "urdu",
         "latin": "english",
         "convention": "muse-contributor-urdu",

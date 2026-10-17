@@ -8,7 +8,7 @@ class Encoder(nn.Module):
     """LSTM encoder: embedding -> LSTM.
 
     Returns the full output sequence (for attention) and the final
-    ``(hidden, cell)`` state used to initialise the decoder.
+    ``(hidden, cell)`` state used to initialize the decoder.
     """
 
     def __init__(self, vocab_size: int, embedding_dim: int, enc_units: int) -> None:

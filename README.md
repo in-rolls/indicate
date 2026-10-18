@@ -441,7 +441,7 @@ The datasets used to train the model:
 - [Indian Election affidavits](https://affidavit.eci.gov.in/CandidateCustomFilter)
 - [Google Dakshina dataset](https://github.com/google-research-datasets/dakshina)
 - [ESPN Cric Info](https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard) for hindi version of the [english scorecard](https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard)
-- [IIT Bombay English-Hindi Corpus](https://www.cfilt.iitb.ac.in/iitb_parallel/)
+- [IIT Bombay English-Hindi Corpus](https://huggingface.co/datasets/cfilt/iitb-english-hindi) (CFILT, IIT Bombay)
 
 ## Evaluation
 

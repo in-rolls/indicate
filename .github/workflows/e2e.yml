@@ -40,6 +40,9 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
+          # The requires-python floor. Unpinned, uv downloads the newest Python
+          # (3.15), which torch has no wheels for.
+          python-version: "3.13"
       - name: Test with no artifacts and no network
         env:
           HF_HUB_OFFLINE: "1"
@@ -58,6 +61,9 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
+          # The requires-python floor. Unpinned, uv downloads the newest Python
+          # (3.15), which torch has no wheels for.
+          python-version: "3.13"
       - name: Cache model weights
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -83,6 +89,9 @@ jobs:
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           enable-cache: true
+          # The requires-python floor. Unpinned, uv downloads the newest Python
+          # (3.15), which torch has no wheels for.
+          python-version: "3.13"
       - name: Build, install and exercise the wheel
         # `and not live`: a bare -m replaces the `-m "not live"` in addopts, so
         # without it this job would start making network calls.

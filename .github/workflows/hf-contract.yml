@@ -24,6 +24,9 @@ concurrency:
   group: hf-contract-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  UV_PYTHON: "3.13"
+
 permissions:
   contents: read
 

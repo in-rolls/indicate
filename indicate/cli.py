@@ -282,7 +282,7 @@ def transliterate(
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
     except KeyboardInterrupt:
-        click.echo("\nOperation cancelled.", err=True)
+        click.echo("\nOperation canceled.", err=True)
         sys.exit(1)
     except Exception as exc:
         click.echo(f"Error: {exc}", err=True)

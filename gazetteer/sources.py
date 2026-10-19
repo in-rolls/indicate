@@ -153,7 +153,7 @@ SOURCES: dict[str, SourceSpec] = {
             human_attested=True,
             authority=0.90,
             note="Held out as the evaluation set. Excluding it from the bundle "
-            "on licence grounds and holding it out for leakage control are the "
+            "on license grounds and holding it out for leakage control are the "
             "same decision.",
         ),
         SourceSpec(
@@ -163,7 +163,7 @@ SOURCES: dict[str, SourceSpec] = {
             trust_group="aksharantar",
             human_attested=True,
             authority=0.60,
-            note="Licence ambiguous: HF metadata says NC, card body says "
+            note="License ambiguous: HF metadata says NC, card body says "
             "CC-BY/CC0 by subset. Excluded until resolved.",
         ),
         SourceSpec(

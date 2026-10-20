@@ -63,7 +63,7 @@ def load_harvest(lang: str, src_dir: Path = SRC_DIR) -> list[CandidateRow]:
     """Read every redistributable source's rows for one language.
 
     Rows whose key is not written in this language's script are dropped. An
-    unscoped Wikidata pull returns every script an entity is labelled in, and
+    unscoped Wikidata pull returns every script an entity is labeled in, and
     those cross-script rows are the ones that carry translations rather than
     romanizations.
 

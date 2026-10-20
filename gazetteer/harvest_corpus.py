@@ -8,7 +8,7 @@ names from ESPNCricinfo.
 Deliberately excluded: ``data/hindi.csv.gz`` blends these two with IIT Bombay
 mined pairs, which are CC-BY-NC, so harvesting it would contaminate a corpus
 published under CC-BY-4.0. Reading the two clean sources directly costs nothing
-and keeps the licence story checkable. ``data/punjabi.csv.gz`` is excluded for a
+and keeps the license story checkable. ``data/punjabi.csv.gz`` is excluded for a
 different reason -- it is GPT-4o output derived from the restricted roll, and
 the shipped model was trained on it, so it is neither redistributable nor
 independent.

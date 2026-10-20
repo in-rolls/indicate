@@ -145,6 +145,9 @@ markers = [
     "gazetteer: exercises gazetteer/, which ships in neither wheel nor sdist",
 ]
 [tool.codespell]
+builtin = "clear,rare,en-GB_to_en-US"
+# Preserve gazetteer schema fields and provider status values.
+ignore-regex = '''\blicence(?=\s*[:=])|(?<=\.)licence\b|["']licence["']|failed/cancelled/expired'''  # codespell:ignore licence
 ignore-words-list = "te"
 
 [tool.pydoclint]

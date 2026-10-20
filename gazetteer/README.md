@@ -79,7 +79,7 @@ misalignment (`भारत`→`deindustrialization`, `के`→`administrative
 The corpus is published **CC-BY-4.0**, which is what CC0 (Wikidata) + CC-BY-4.0
 (GeoNames) + repo-owned inputs permit. `sources.py` marks everything else
 `redistributable=False` and `build.py` reads only bundled sources, so the
-licence claim is enforced in code rather than asserted in prose.
+license claim is enforced in code rather than asserted in prose.
 
 Excluded and why: OSM (ODbL share-alike), Dakshina and Wikipedia interwiki
 (CC-BY-SA), `data/hindi.csv.gz` and `data/iit/` (IIT Bombay mined pairs are
@@ -123,7 +123,7 @@ Outputs land under `gazetteer/build/` (git-ignored): `freq/` the key lists,
 |---|---|
 | `script.py` | Indic detection, per-language script gate, clean-token rule |
 | `align.py` | positional label → token-pair decomposition |
-| `sources.py` | licence posture, trust groups, authority priors |
+| `sources.py` | license posture, trust groups, authority priors |
 | `records.py` | validated row schema; attestation-weighted `aggregate` |
 | `frequency.py` | Zipf mining, coverage cutpoints |
 | `plausibility.py` | measured length band |
@@ -185,7 +185,7 @@ cover.
 - **Hindi frequency is weak.** The only Devanagari frequency source in-repo is
   `data/affidavits.csv`, whose head is dominated by single-letter initials
   (के, एस, ए). That is a fact about affidavit formatting, not about Hindi. The
-  Punjab roll is a far better frequency oracle and has no Devanagari analogue
+  Punjab roll is a far better frequency oracle and has no Devanagari analog
   here yet.
 - **Corroboration is still thin, and GeoNames could not fix it.** 88.7% of Hindi
   token mass has at least one candidate; only 44.4% is backed by two independent

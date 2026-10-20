@@ -25,7 +25,7 @@ OUTPUT_LEN_PADDING = 8
 class CharTokenizer:
     """Character-level tokenizer holding the ``word_index``/``index_word`` maps.
 
-    Loaded from the JSON files that were serialised by the original Keras
+    Loaded from the JSON files that were serialized by the original Keras
     ``Tokenizer`` so the vocabulary indices stay identical across the migration.
     """
 

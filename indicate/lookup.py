@@ -52,8 +52,14 @@ is not even consistent (``ਕੁਮਾਰੀ``: table ``kumaari``, model ``kumar
 from __future__ import annotations
 
 import gzip
+import re
+import unicodedata
 from functools import lru_cache
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 from .logging import get_logger
 from .normalize import EDGE_NOISE, NORMALIZER_VERSION, gaz_key, strip_edge_noise
@@ -161,6 +167,22 @@ def lookup_key(word: str) -> str:
 _VERIFY_SAMPLE = 1024
 
 
+@lru_cache(maxsize=1 << 17)
+def _latin_word(text: str) -> bool:
+    """Require Latin letters and reject letters or marks from other scripts."""
+    letters = False
+    for character in unicodedata.normalize("NFC", text):
+        kind = unicodedata.category(character)[0]
+        name = unicodedata.name(character, "")
+        if kind == "L":
+            if "LATIN" not in name:
+                return False
+            letters = True
+        elif kind == "M" and not (letters and name.startswith("COMBINING ")):
+            return False
+    return letters
+
+
 def _keys_look_normalized(table: dict[str, str]) -> bool:
     """Report whether a sample of keys is already in canonical form.
 
@@ -228,6 +250,69 @@ class Lookup:
             return None
         # The overwhelmingly common case has no edges at all; skip the joins.
         return prefix + hit + suffix if prefix or suffix else hit
+
+    def with_overrides(self, overrides: Mapping[str, str | None]) -> Lookup:
+        """Return a copy with reviewed replacements or explicit abstentions.
+
+        Args:
+            overrides: Surface tokens mapped to Latin forms; None blocks a key.
+                Conflicting surface forms that normalize to one key are rejected.
+
+        Returns:
+            A separate table retaining this table's provenance headers.
+
+        Raises:
+            ValueError: A key is empty, a replacement is blank, or keys conflict.
+        """
+        normalized: dict[str, str | None] = {}
+        for word, value in overrides.items():
+            key = lookup_key(word)
+            if not key or (value is not None and not value.strip()):
+                raise ValueError("Overrides require nonempty keys and replacements")
+            if value is not None and not _latin_word(value):
+                raise ValueError("Overrides require Latin-script replacements")
+            if key in normalized and normalized[key] != value:
+                raise ValueError(f"Conflicting overrides for normalized key: {key}")
+            normalized[key] = value
+        table = dict(self._table)
+        for key, value in normalized.items():
+            if value is None:
+                table.pop(key, None)
+            else:
+                table[key] = value
+        return Lookup(table, {**self._meta, "overrides": str(len(normalized))})
+
+    def get_text(self, text: str) -> str | None:
+        """Romanize a complete string, abstaining if any word is unresolved.
+
+        Whitespace, punctuation and numeric tokens are preserved. This method
+        makes no model or network calls and never returns a partial name.
+        Unknown Latin words also abstain; mixed-script text is not guessed.
+
+        Args:
+            text: Native-script text to look up word by word.
+
+        Returns:
+            Complete romanization, or None for empty text or any unresolved word.
+        """
+        if not text.strip():
+            return None
+        pieces = re.split(r"(\s+)", text)
+        for index, piece in enumerate(pieces):
+            if not any(
+                unicodedata.category(character)[0] in "LM" for character in piece
+            ):
+                continue
+            start, end = 0, len(piece)
+            while start < end and unicodedata.category(piece[start]).startswith("P"):
+                start += 1
+            while end > start and unicodedata.category(piece[end - 1]).startswith("P"):
+                end -= 1
+            hit = self.get(piece[start:end])
+            if hit is None or not _latin_word(hit):
+                return None
+            pieces[index] = piece[:start] + hit + piece[end:]
+        return "".join(pieces)
 
     @classmethod
     def from_path(cls, path: Path) -> Lookup | None:

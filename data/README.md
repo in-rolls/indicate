@@ -79,7 +79,7 @@ shared LLM-labeled Eastern Nagari elector-name corpus
 ```
 
 Only the compiled lookup is published. The multi-million-row source CSV stays
-in `eroll_transliteration` with its collection and provenance pipeline; it is
+in `electoral_rolls_transliteration` with its collection and provenance pipeline; it is
 not copied into this repository or package. The compiled table header records
 the source corpus's SHA-256 for an exact, independently checkable build link.
 
@@ -99,13 +99,13 @@ Rebuild the published artifact without copying the corpus:
 
 ```bash
 uv run --group train python training/build_lookup.py --lang bengali \
-  --corpus ../eroll_transliteration/data/bengali.csv.gz
+  --corpus ../electoral_rolls_transliteration/data/bengali.csv.gz
 ```
 
 ## J&K Hindi review handoff
 
 The September 12, 2026 instate review compares 5,857 selected native tokens with
-this Hindi corpus and `../eroll_transliteration/data/hindi.csv.gz`. A shared Latin
+this Hindi corpus and `../electoral_rolls_transliteration/data/hindi.csv.gz`. A shared Latin
 candidate is evidence of overlap, not necessarily a unique answer. Of 2,838
 matching candidate sets, 1,321 have a single matching candidate and 1,517 contain
 alternatives. Neither figure measures transliteration accuracy.
@@ -169,7 +169,7 @@ uncertain. The reviewed instate candidate changes only `बख्शी` from `b
 model answer. Exactly 25 Latin-name occurrences change; native selections,
 abstentions and household/relative evidence remain unchanged. This is a reviewed
 candidate map change, not a source-corpus or model update. The current handoff is
-`data/jk_recovery/hindi_reviewed_candidate/` in instate.
+`data/jk_2018/hindi/handoff/` in instate.
 
 ## J&K Urdu handoff
 
@@ -179,8 +179,8 @@ records. Upnaam selects 970,947 corroborated native surname occurrences from
 recovery matched 1,259 of 1,322 hidden word controls exactly (95.23%); this
 measures transcription, not surname or pronunciation accuracy.
 
-The shared lookup corpus remains in instate at
-`data/jk_recovery/muse_review/urdu_all_tokens/`:
+The shared lookup corpus and its provenance are retained in instate at
+`data/jk_2018/urdu/`:
 
 - `urdu.csv.gz` contains eligible native/Latin pairs;
 - `transliterations.parquet` records completed decisions, alternatives, evidence
@@ -188,25 +188,46 @@ The shared lookup corpus remains in instate at
 - `provenance.json` records review batches and the selection policy; and
 - `validation.json` records corpus hashes and selected-handoff coverage.
 
-The corpus contains 45,427 reviewed token types and 27,221 eligible pairs. The
-final 164-type selected-token review adds 1,450 mappings to the prior 25,771-pair
-map. All 4,399 selected Urdu types are mapped, covering all 970,947 selected
-occurrences. Across all accepted decoded own and relative names, eligible pairs
-cover 5,581,174 of 6,168,112 token occurrences (90.48%). Coverage does not measure
-transcription or pronunciation accuracy.
+The retained corpus contains 45,444 token decisions and 27,282 eligible pairs.
+The review ledger covers 45,449 distinct types, including five newly reviewed
+unresolved types absent from the retained table. The calibrated baseline had
+27,221 pairs and covered all 4,399 selected types and 970,947 occurrences.
+
+A subsequent three-pass Muse Spark Contributor review considered 179 unmapped
+types selected by the demographic-enriched handoff. It added 61 mappings without
+changing existing pairs: 31 have lexical support and 30 are model-only. Each
+addition required three supported, unflagged passes, a repeated primary spelling,
+agreement with lexical forms where available, and no historical source warning.
+Repeated model agreement is correlated evidence, not an accuracy estimate.
+
+The enriched Upnaam handoff selects 1,371,913 native occurrences: 1,371,162 have
+a Latin mapping and 751 remain unmapped. These are selected occurrences among
+4,608,102 active assembly records, distinct from complete-name coverage. The
+extension evidence is in Instate's
+`model_training/jk_2018_urdu_transliteration_extension.json`.
+
+Instate's full-field export uses `Lookup.get_text` and preserves native fields.
+Across all 4,690,023 Urdu records it renders 2,147,067 of 2,315,587 accepted
+elector names and 3,236,784 of 3,401,536 accepted relative names completely.
+Unknown words leave the Latin field null; they do not produce a partial name.
+The counts include inactive and nonassembly records. The reproducible evidence
+is in Instate's `model_training/jk_2018_roll_export_audit.json` and
+`model_training/jk_2018_enriched_urdu_audit.json`.
 
 Build the installed table with:
 
 ```sh
 python training/build_lookup.py --lang urdu \
-  --corpus ../instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz
+  --corpus ../instate/data/jk_2018/urdu/urdu.csv.gz
 ```
 
-The resulting `lookup.tsv.gz` has 27,221 keys, no contested keys and no ties. Its
+The resulting `lookup.tsv.gz` has 27,282 keys, no contested keys and no ties. Its
 SHA-256 is
-`570206fa75d4c12169bd7d09aa081ce0b268f8208d50fa7c5aaa622c5f862950`.
+`3d67d873aacc90977624140c6d70ae9deb7beec004ce09c61fa6350220880c9c`.
 The corpus SHA-256 is
-`35be72079f8a226db1e9794ac91fa3c9f921fc673287c93450f23514502cd373`.
+`366fbe7ccae87e8efeb371417609af5be65cddfa9452fa09f1173dace5c8b814`.
 No corpus copy is stored in indicate, and no API call occurs during lookup use.
-Model-only mappings remain silver annotations; quarantined, warned and unsupported
-decisions stay outside the table.
+Model-only mappings remain silver annotations. The 61 new mappings exclude
+warned, unsupported and unresolved decisions. The earlier calibrated policy is
+preserved: 589 existing mapped decisions carry a source warning, so this table
+is not uniformly warning-free. Provenance identifies the policy for each entry.

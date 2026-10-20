@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+- Add `Lookup.get_text` for complete local field transliteration, preserving
+  whitespace and punctuation while abstaining on any unresolved word. Add
+  `Lookup.with_overrides` for reviewed substitutions and explicit exclusions
+  without changing the original lookup.
+- Point the reproducible Urdu lookup build at the retained J&K token corpus in
+  Instate. The accepted 27,221 word pairs remain unchanged.
+
 ## 0.10.0 — 2026-09-20
 
 ### Changed

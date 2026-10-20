@@ -5,7 +5,7 @@ tables derive from ``data/hindi.csv.gz`` (which blends CC-BY-NC IIT Bombay
 pairs) and ``data/punjabi.csv.gz`` (from the IRB-restricted electoral-roll
 deposit); neither is redistributable in an MIT wheel. The exclusion once
 rested on one line of ``.gitignore``, which the old hatchling backend happened
-to honour; it now lives in ``[tool.uv.build-backend]`` excludes. These tests
+to honor; it now lives in ``[tool.uv.build-backend]`` excludes. These tests
 assert it directly, so a build-config change that would ship restricted data
 fails a test rather than reaching PyPI.
 """

@@ -207,7 +207,7 @@ def no_real_provider_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     into a checkpoint file in the repository root, which was committed.
 
     Mocking the provider in each test is not sufficient protection, because the
-    tests that need mocking are exactly the ones nobody realised could reach the
+    tests that need mocking are exactly the ones nobody realized could reach the
     network. Removing the credential removes the capability.
 
     Tests that genuinely need a key set one themselves with ``monkeypatch``,

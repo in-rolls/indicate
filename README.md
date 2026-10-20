@@ -40,15 +40,22 @@ Build the local lookup from that corpus:
 ```sh
 export INDICATE_DATA_DIR="$PWD/indicate/data"
 uv run --group train python training/build_lookup.py --lang urdu \
-    --corpus ../instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz
+    --corpus ../instate/data/jk_2018/urdu/urdu.csv.gz
 indicate transliterate "خان" --from urdu --engine lookup
 ```
 
 The lookup returns covered spellings without an API call. Uncovered tokens remain
-unresolved with `--engine lookup`. The final corpus contains 45,427 reviewed token
-types and 27,221 eligible Urdu/Latin pairs. All 4,399 native types selected by the
+unresolved with `--engine lookup`. The retained corpus contains 45,444 token
+decisions and 27,282 eligible Urdu/Latin pairs. The review ledger covers 45,449
+distinct types; five newly reviewed unresolved types remain only in that ledger. All 4,399 native types selected by the
 calibrated upnaam handoff are mapped, covering 970,947 selected occurrences. The
-installed table has exactly 27,221 keys and no contested or tied key.
+installed table has exactly 27,282 keys and no contested or tied key.
+
+Instate also uses `Lookup.get_text` to render complete name fields, abstaining
+when any word is unresolved. Across all 4,690,023 Urdu edition records, this
+produces 2,147,067 complete Latin elector names from 2,315,587 accepted native
+names; 168,520 accepted names remain unresolved. These counts include inactive
+and nonassembly records and measure coverage, not transliteration accuracy.
 
 Some pairs have human lexical support and others are model-only silver annotations.
 This is not a verified pronunciation dictionary. Counts, alternatives, exclusions
@@ -237,6 +244,28 @@ except indicate.BackendsUnavailableError as exc:
 ```
 
 ### Why the lookup backend is first by default
+
+For dataset fields that must remain complete, a local table can abstain on the
+whole field when any word is unresolved. Source-specific reviews can override a
+generic spelling or block it explicitly:
+
+```python
+from pathlib import Path
+from indicate.lookup import Lookup
+
+table = Lookup.from_path(Path("indicate/data/hindi_to_english/lookup.tsv.gz"))
+if table is None:
+    raise ValueError("A compatible local lookup table is required")
+reviewed = table.with_overrides({"सिहं": None})
+assert reviewed.get_text("राम सिहं") is None
+```
+
+`get_text` preserves whitespace, punctuation and numeric tokens, makes no API
+calls, and returns a complete Latin rendering or `None`. Unknown Latin words in
+mixed-script input also abstain. Overrides return a separate table and reject
+conflicting normalized keys or replacements without Latin letters. Retain the
+native field and the review provenance alongside the result; a table hit is not
+an accuracy estimate.
 
 Known words are answered from the word table and never reach the decoder. On
 Punjab electoral-roll text that covers 99.1% of tokens, so the model handles the
@@ -441,7 +470,7 @@ The datasets used to train the model:
 - [Indian Election affidavits](https://affidavit.eci.gov.in/CandidateCustomFilter)
 - [Google Dakshina dataset](https://github.com/google-research-datasets/dakshina)
 - [ESPN Cric Info](https://www.espncricinfo.com/hindi/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard) for hindi version of the [english scorecard](https://www.espncricinfo.com/series/pakistan-tour-of-england-2021-1239529/england-vs-pakistan-1st-odi-1239537/full-scorecard)
-- [IIT Bombay English-Hindi Corpus](https://www.cfilt.iitb.ac.in/iitb_parallel/)
+- [IIT Bombay English-Hindi Corpus](https://huggingface.co/datasets/cfilt/iitb-english-hindi) (CFILT, IIT Bombay)
 
 ## Evaluation
 

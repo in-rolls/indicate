@@ -5,7 +5,7 @@ Run::
     uv run python training/build_lookup.py --lang punjabi
     uv run python training/build_lookup.py --lang hindi
     uv run python training/build_lookup.py --lang bengali \
-        --corpus ../eroll_transliteration/data/bengali.csv.gz
+        --corpus ../electoral_rolls_transliteration/data/bengali.csv.gz
     uv run python training/build_lookup.py --lang punjabi --eval-clean
 
 Writes ``indicate/data/<lang>_to_english/lookup.tsv.gz``.
@@ -70,7 +70,7 @@ CORPORA = {
     },
     "urdu": {
         "path": None,
-        "source": "instate/data/jk_recovery/muse_review/urdu_all_tokens/urdu.csv.gz",
+        "source": "instate/data/jk_2018/urdu/urdu.csv.gz",
         "native": "urdu",
         "latin": "english",
         "convention": "muse-contributor-urdu",

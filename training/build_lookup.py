@@ -5,7 +5,7 @@ Run::
     uv run python training/build_lookup.py --lang punjabi
     uv run python training/build_lookup.py --lang hindi
     uv run python training/build_lookup.py --lang bengali \
-        --corpus ../eroll_transliteration/data/bengali.csv.gz
+        --corpus ../electoral_rolls_transliteration/data/bengali.csv.gz
     uv run python training/build_lookup.py --lang punjabi --eval-clean
 
 Writes ``indicate/data/<lang>_to_english/lookup.tsv.gz``.

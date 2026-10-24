@@ -193,12 +193,10 @@ module-root = ""
 source-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
 wheel-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
 
-[tool.preen]
-# filelock: every litellm release (through 1.106.2) requires filelock<4.0, and
-# these advisories are fixed only in 4.2.1. None is reachable here, checked
-# 2026-10-24 by source search and a runtime trace of every lock created:
-# CVE-2026-112940 and CVE-2026-112913 are in ReadWriteLock/AsyncReadWriteLock,
-# which no installed package constructs; CVE-2026-112907 is Windows-only in
-# SoftFileLock, which huggingface_hub uses only on a Unix-only fallback.
-# Remove when litellm allows filelock>=4.2.1.
-audit_ignore = ["CVE-2026-112940", "CVE-2026-112913", "CVE-2026-112907"]
+[tool.uv]
+# litellm (every release through 1.106.2) caps filelock<4.0, but filelock 4.0's
+# only breaking change is SoftReadWriteLock's on-disk format, and litellm uses
+# plain FileLock alone. The override admits filelock 4.2.1, which fixes
+# CVE-2026-112940, CVE-2026-112913 and CVE-2026-112907. Remove when litellm
+# lifts the cap.
+override-dependencies = ["filelock>=4.2.1"]

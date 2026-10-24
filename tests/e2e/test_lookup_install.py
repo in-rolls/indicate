@@ -179,10 +179,11 @@ def test_languages_reports_the_backend_ready_once_it_is_pointed_at_one(
         assert len(rows) == 1, out
         return rows[0]
 
-    assert "unavailable" in lookup_row(without.stdout)
+    # Published tables report as fetchable until one is local.
+    assert "downloads on first use" in lookup_row(without.stdout)
     assert "ready" in lookup_row(with_table.stdout)
-    # And the untouched direction is unchanged, so this is the variable taking
-    # effect rather than the status logic collapsing to "everything is fine".
+    # And the unpublished directions are unchanged, so this is the variable
+    # taking effect rather than the status logic collapsing to "ready".
     assert "unavailable" in with_table.stdout
 
 

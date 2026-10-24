@@ -39,6 +39,6 @@
   "lookup": {
     "keys": 399512,
     "tied_keys_withheld": 12,
-    "downloadable": false
+    "downloadable": true
   }
 }

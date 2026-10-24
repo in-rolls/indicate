@@ -87,8 +87,8 @@ class TestLanguagesCommand:
     def test_it_distinguishes_downloadable_and_locally_built_lookups(
         self, script: Path, clean_env, tmp_path: Path
     ):
-        # This venv has no lookup tables. Bengali is published and can be
-        # fetched later; the restricted Hindi and Punjabi tables cannot.
+        # This venv has no lookup tables. Hindi is published and can be
+        # fetched later; Gujarati is built only from a corpus kept outside it.
         proc = run(script, "languages", env=clean_env, cwd=tmp_path)
         assert proc.returncode == 0, proc.stderr
         # Table rows only: the trailing hint also mentions the word "lookup".
@@ -102,9 +102,10 @@ class TestLanguagesCommand:
         by_language = {
             row.split(" ->", 1)[0].strip(): row for row in rows if " ->" in row
         }
-        assert by_language["bengali"].endswith("downloads on first use")
-        assert by_language["hindi"].endswith("unavailable")
-        assert by_language["punjabi"].endswith("unavailable")
+        for language in ("bengali", "hindi", "kannada", "malayalam", "punjabi"):
+            assert by_language[language].endswith("downloads on first use")
+        assert by_language["gujarati"].endswith("unavailable")
+        assert by_language["urdu"].endswith("unavailable")
         assert "build_lookup.py" in proc.stdout
 
 

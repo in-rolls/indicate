@@ -139,13 +139,21 @@ class TestCaching(unittest.TestCase):
         self.assertEqual(table.get("বৰুৱা"), "barua")
         resolve.assert_called_once_with("bengali_to_english", LOOKUP_FILE)
 
-    def test_restricted_tables_do_not_attempt_a_download(self):
+    def test_unpublished_tables_do_not_attempt_a_download(self):
         with (
             patch("indicate.lookup.local_data_path", return_value="/missing"),
             patch("indicate.lookup.try_resolve_data") as resolve,
         ):
-            self.assertIsNone(Lookup.load("hindi_to_english"))
+            self.assertIsNone(Lookup.load("urdu_to_english"))
         resolve.assert_not_called()
+
+    def test_published_tables_are_fetched_when_not_local(self):
+        with (
+            patch("indicate.lookup.local_data_path", return_value="/missing"),
+            patch("indicate.lookup.try_resolve_data", return_value=None) as resolve,
+        ):
+            self.assertIsNone(Lookup.load("hindi_to_english"))
+        resolve.assert_called_once_with("hindi_to_english", LOOKUP_FILE)
 
 
 if __name__ == "__main__":

@@ -55,6 +55,7 @@ class TestFileIO(unittest.TestCase):
         finally:
             Path(temp_output).unlink()
 
+    @pytest.mark.needs_lookup
     def test_input_output_together(self):
         """Test input and output files together."""
         # Create input file
@@ -92,6 +93,7 @@ class TestFileIO(unittest.TestCase):
             Path(temp_input).unlink()
             Path(temp_output).unlink()
 
+    @pytest.mark.needs_lookup
     def test_batch_processing_file(self):
         """Test batch processing with file input."""
         with tempfile.NamedTemporaryFile(

@@ -41,6 +41,7 @@ MODEL_ONLY = [("राजशेखर चिंतालपति", "rajshekar c
 
 @pytest.mark.needs_weights
 class TestHindiToEnglish(unittest.TestCase):
+    @pytest.mark.needs_lookup
     def test_hindi_to_english(self):
         for hindi, english in SHIPPED:
             self.assertEqual(hi(hindi), english)

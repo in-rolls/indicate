@@ -39,6 +39,7 @@ class TestCLI(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("gaurav", result.output.lower())
 
+    @pytest.mark.needs_lookup
     def test_transliterate_file_input(self):
         """Test hindi2english with file input."""
         with tempfile.NamedTemporaryFile(

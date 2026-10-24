@@ -46,6 +46,7 @@ class TestAPI(unittest.TestCase):
         self.assertIsInstance(result, str)
         self.assertEqual(result.lower(), "gaurav")
 
+    @pytest.mark.needs_lookup
     def test_hindi2english_class_direct(self):
         """Test direct class usage."""
         result = hi("राजशेखर")
@@ -79,6 +80,7 @@ class TestAPI(unittest.TestCase):
         self.assertIsInstance(target_vocab, str)
         self.assertTrue(target_vocab.endswith("english_tokens.json"))
 
+    @pytest.mark.needs_lookup
     def test_multiple_translations(self):
         """Test multiple translations in sequence."""
         # Shipped defaults: table hits where available, decoded otherwise.

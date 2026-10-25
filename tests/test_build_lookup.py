@@ -284,7 +284,7 @@ class TestUrduCorpus(unittest.TestCase):
             )
             self.assertTrue(supports("urdu", "english", "lookup"))
             self.assertFalse(supports("urdu", "english", "model"))
-            self.assertNotIn("urdu_to_english", DOWNLOADABLE)
+            self.assertIn("urdu_to_english", DOWNLOADABLE)
 
     def test_urdu_requires_an_explicit_external_corpus(self):
         self.assertEqual(main(["--lang", "urdu"]), 1)

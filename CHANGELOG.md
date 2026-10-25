@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.11.0 — 2026-10-24
+
+### Changed
+
 - Publish the Hindi, Punjabi, Kannada and Malayalam lookup tables to the model
   repository, so they download on first use as Bengali's does. A pip install
   now returns table answers (राजशेखर → `rajshekhar`, where the model alone gives
@@ -13,6 +17,10 @@
   without changing the original lookup.
 - Point the reproducible Urdu lookup build at the retained J&K token corpus in
   Instate. The accepted 27,221 word pairs remain unchanged.
+- Add a local Gujarati lookup direction, built from a controlled two-column
+  `gujarati,english` corpus with `training/build_lookup.py --lang gujarati
+  --corpus ...`. An optional `count` column weights the votes, and keys whose
+  weighted vote ties are left out.
 
 ## 0.10.0 — 2026-09-20
 

@@ -6,7 +6,7 @@ build-backend = "uv_build"
 name = "indicate"
 description = "Transliterations to/from Indian languages"
 readme = "README.md"
-version = "0.10.0"
+version = "0.11.0"
 authors = [
     {name = "Rajashekar Chintalapati", email = "rajshekar.ch@gmail.com"},
     {name = "Gaurav Sood", email = "gsood07@gmail.com"}

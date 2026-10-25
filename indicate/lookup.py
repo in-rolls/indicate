@@ -292,26 +292,29 @@ class Lookup:
             ValueError: A key is empty, a replacement is blank, or keys conflict.
         """
         normalized: dict[str, str | None] = {}
+        entries: set[str] = set()
         for word, value in overrides.items():
-            # Key the way get_text queries, or an override written with
-            # Unicode edge punctuation (an Arabic comma, a curly quote) is
-            # stored under a key get_text never asks for.
+            # get() keys a word with lookup_key, which keeps Unicode edge
+            # punctuation (an Arabic comma, a curly quote); get_text strips it
+            # first. Apply the override under both keys so it reaches both.
             start, end = _punctuation_bounds(word)
-            key = lookup_key(word[start:end])
-            if not key or (value is not None and not value.strip()):
+            keys = {lookup_key(word), lookup_key(word[start:end])} - {""}
+            if not keys or (value is not None and not value.strip()):
                 raise ValueError("Overrides require nonempty keys and replacements")
             if value is not None and not _latin_word(value):
                 raise ValueError("Overrides require Latin-script replacements")
-            if key in normalized and normalized[key] != value:
-                raise ValueError(f"Conflicting overrides for normalized key: {key}")
-            normalized[key] = value
+            for key in keys:
+                if key in normalized and normalized[key] != value:
+                    raise ValueError(f"Conflicting overrides for normalized key: {key}")
+                normalized[key] = value
+            entries.add(lookup_key(word[start:end]) or lookup_key(word))
         table = dict(self._table)
         for key, value in normalized.items():
             if value is None:
                 table.pop(key, None)
             else:
                 table[key] = value
-        return Lookup(table, {**self._meta, "overrides": str(len(normalized))})
+        return Lookup(table, {**self._meta, "overrides": str(len(entries))})
 
     def get_text(self, text: str) -> str | None:
         """Romanize a complete string, abstaining if any word is unresolved.

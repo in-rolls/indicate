@@ -94,9 +94,10 @@ SHIPPED = frozenset(
 #: Directories whose table can be fetched from the model repo.
 #:
 #: Each published table is built by ``training/build_lookup.py`` from a corpus:
-#: Bengali from LLM-labeled Eastern Nagari words, and Hindi, Punjabi, Kannada and
-#: Malayalam from the corpora committed under ``data/``. Gujarati and Urdu are
-#: built from corpora kept in Instate and are not published; build them locally::
+#: Bengali from LLM-labeled Eastern Nagari words, Urdu from Instate's J&K token
+#: corpus, and Hindi, Punjabi, Kannada and Malayalam from the corpora committed
+#: under ``data/``. Gujarati is built from a corpus kept outside this repository
+#: and is not published; build it locally::
 #:
 #:     uv run --group train python training/build_lookup.py --lang gujarati \
 #:         --corpus /path/to/gujarati.csv.gz
@@ -110,6 +111,7 @@ DOWNLOADABLE: frozenset[str] = frozenset(
         "kannada_to_english",
         "malayalam_to_english",
         "punjabi_to_english",
+        "urdu_to_english",
     }
 )
 

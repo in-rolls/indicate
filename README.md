@@ -35,13 +35,18 @@ pip install indicate
 ### Local Urdu lookup
 
 The J&K electoral-roll recovery in `instate` supplies a shared Urdu token corpus.
-Build the local lookup from that corpus:
+Its lookup table downloads from the model repository on first use:
+
+```sh
+indicate transliterate "خان" --from urdu --engine lookup
+```
+
+To rebuild the table from the corpus instead:
 
 ```sh
 export INDICATE_DATA_DIR="$PWD/indicate/data"
 uv run --group train python training/build_lookup.py --lang urdu \
     --corpus ../instate/data/jk_2018/urdu/urdu.csv.gz
-indicate transliterate "خان" --from urdu --engine lookup
 ```
 
 The lookup returns covered spellings without an API call. Uncovered tokens remain
@@ -84,7 +89,7 @@ pip install indicate
 
 ### For the lookup backend:
 
-The Bengali, Hindi, Kannada, Malayalam and Punjabi word tables download from
+The Bengali, Hindi, Kannada, Malayalam, Punjabi and Urdu word tables download from
 the pinned model-assets repository on first use and are then cached:
 
 ```sh
@@ -110,7 +115,7 @@ indicate transliterate "પટેલ" --from gujarati --engine lookup
 
 Uncovered Gujarati tokens remain lookup misses and do not invoke a paid provider.
 
-To use a table you built yourself (Gujarati, Urdu, or a rebuilt one), point
+To use a table you built yourself (Gujarati, or a rebuilt one), point
 `INDICATE_DATA_DIR` at it:
 
 ```bash

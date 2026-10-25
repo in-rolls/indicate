@@ -144,7 +144,7 @@ class TestCaching(unittest.TestCase):
             patch("indicate.lookup.local_data_path", return_value="/missing"),
             patch("indicate.lookup.try_resolve_data") as resolve,
         ):
-            self.assertIsNone(Lookup.load("urdu_to_english"))
+            self.assertIsNone(Lookup.load("gujarati_to_english"))
         resolve.assert_not_called()
 
     def test_published_tables_are_fetched_when_not_local(self):

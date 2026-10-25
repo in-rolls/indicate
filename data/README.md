@@ -214,7 +214,8 @@ The counts include inactive and nonassembly records. The reproducible evidence
 is in Instate's `model_training/jk_2018_roll_export_audit.json` and
 `model_training/jk_2018_enriched_urdu_audit.json`.
 
-Build the installed table with:
+The table is published in the model repository and downloads on first use.
+It is built with:
 
 ```sh
 python training/build_lookup.py --lang urdu \

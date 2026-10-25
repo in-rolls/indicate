@@ -17,7 +17,7 @@ from pathlib import Path
 
 #: Hugging Face repo holding per-language directories.
 HF_REPO = "gojiberries/indicate"
-HF_REVISION = "a0632023b4285dd7cd807e4ab0fc3944a0891745"
+HF_REVISION = "f27d533a5cdd33cc900b4eda09ae4be63b0418ae"
 
 
 #: Environment variable naming a directory to look in before the package.

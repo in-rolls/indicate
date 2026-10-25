@@ -29,6 +29,26 @@ def test_review_can_block_a_generic_hit_without_mutating_original():
     assert table.get_text("राम सिहं") == "ram singh"
 
 
+@pytest.mark.parametrize("edge", ["\u060c", "\u201d", "\u00bb"])
+def test_overrides_keyed_with_unicode_punctuation_reach_get_text(edge):
+    # get_text strips edge punctuation by Unicode category before the lookup,
+    # so an override written with that punctuation must key the same way.
+    table = Lookup({"علی": "ali"}, {})
+    assert table.with_overrides({f"علی{edge}": None}).get_text(f"علی{edge}") is None
+    assert (
+        table.with_overrides({f"علی{edge}": "aly"}).get_text(f"علی{edge}")
+        == f"aly{edge}"
+    )
+
+
+def test_overrides_still_reach_get_for_a_key_that_keeps_its_punctuation():
+    # lookup_key keeps Unicode punctuation, so a table can store "علی،" as is;
+    # an override for it must keep applying through get().
+    table = Lookup({"علی،": "ali"}, {})
+    assert table.with_overrides({"علی،": None}).get("علی،") is None
+    assert table.with_overrides({"علی،": "aly"}).get("علی،") == "aly"
+
+
 def test_conflicting_normalized_overrides_fail_closed():
     table = Lookup({}, {})
     with pytest.raises(ValueError, match="Conflicting"):

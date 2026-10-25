@@ -175,6 +175,26 @@ _VERIFY_SAMPLE = 1024
 
 
 @lru_cache(maxsize=1 << 17)
+def _punctuation_bounds(piece: str) -> tuple[int, int]:
+    """Return the span of ``piece`` inside any leading and trailing punctuation.
+
+    Punctuation is any Unicode ``P*`` character, which covers the Arabic comma
+    and curly quotes that :data:`~indicate.normalize.EDGE_NOISE` does not.
+
+    Args:
+        piece: One whitespace-free token.
+
+    Returns:
+        ``(start, end)`` indices of the unpunctuated core.
+    """
+    start, end = 0, len(piece)
+    while start < end and unicodedata.category(piece[start]).startswith("P"):
+        start += 1
+    while end > start and unicodedata.category(piece[end - 1]).startswith("P"):
+        end -= 1
+    return start, end
+
+
 def _latin_word(text: str) -> bool:
     """Require Latin letters and reject letters or marks from other scripts."""
     letters = False
@@ -272,22 +292,29 @@ class Lookup:
             ValueError: A key is empty, a replacement is blank, or keys conflict.
         """
         normalized: dict[str, str | None] = {}
+        entries: set[str] = set()
         for word, value in overrides.items():
-            key = lookup_key(word)
-            if not key or (value is not None and not value.strip()):
+            # get() keys a word with lookup_key, which keeps Unicode edge
+            # punctuation (an Arabic comma, a curly quote); get_text strips it
+            # first. Apply the override under both keys so it reaches both.
+            start, end = _punctuation_bounds(word)
+            keys = {lookup_key(word), lookup_key(word[start:end])} - {""}
+            if not keys or (value is not None and not value.strip()):
                 raise ValueError("Overrides require nonempty keys and replacements")
             if value is not None and not _latin_word(value):
                 raise ValueError("Overrides require Latin-script replacements")
-            if key in normalized and normalized[key] != value:
-                raise ValueError(f"Conflicting overrides for normalized key: {key}")
-            normalized[key] = value
+            for key in keys:
+                if key in normalized and normalized[key] != value:
+                    raise ValueError(f"Conflicting overrides for normalized key: {key}")
+                normalized[key] = value
+            entries.add(lookup_key(word[start:end]) or lookup_key(word))
         table = dict(self._table)
         for key, value in normalized.items():
             if value is None:
                 table.pop(key, None)
             else:
                 table[key] = value
-        return Lookup(table, {**self._meta, "overrides": str(len(normalized))})
+        return Lookup(table, {**self._meta, "overrides": str(len(entries))})
 
     def get_text(self, text: str) -> str | None:
         """Romanize a complete string, abstaining if any word is unresolved.
@@ -310,11 +337,7 @@ class Lookup:
                 unicodedata.category(character)[0] in "LM" for character in piece
             ):
                 continue
-            start, end = 0, len(piece)
-            while start < end and unicodedata.category(piece[start]).startswith("P"):
-                start += 1
-            while end > start and unicodedata.category(piece[end - 1]).startswith("P"):
-                end -= 1
+            start, end = _punctuation_bounds(piece)
             hit = self.get(piece[start:end])
             if hit is None or not _latin_word(hit):
                 return None

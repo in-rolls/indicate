@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.12.0 — 2026-10-25
+
+### Changed
+
 - Publish the Urdu lookup table (27,282 keys, built from Instate's J&K token
   corpus) to the model repository, so it downloads on first use. Gujarati is
   now the only lookup direction built locally.

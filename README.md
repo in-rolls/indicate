@@ -408,8 +408,8 @@ indicate transliterate --input names.txt --engine lookup
 
 | | `lookup` | `model` | `llm` |
 |---|---|---|---|
-| **Directions** | Bengali, Hindi, Punjabi → English | Hindi, Punjabi → English | 12+ languages, any Indic pair |
-| **Setup** | Bengali downloads; build Hindi/Punjabi | none | API key |
+| **Directions** | Bengali, Gujarati, Hindi, Kannada, Malayalam, Punjabi, Urdu → English | Hindi, Punjabi → English | 12+ languages, any Indic pair |
+| **Setup** | downloads on first use; build Gujarati | none | API key |
 | **Speed** | 10,937 tok/s end to end | 258 tok/s | network-bound |
 | **Cost** | free | free | per API call |
 | **Offline** | ✅ | ✅ | ❌ |

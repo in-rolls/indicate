@@ -1,13 +1,11 @@
 """What may and may not ship.
 
-The exclusions here are a **license gate**, not a size optimization. Lookup
-tables derive from ``data/hindi.csv.gz`` (which blends CC-BY-NC IIT Bombay
-pairs) and ``data/punjabi.csv.gz`` (from the IRB-restricted electoral-roll
-deposit); neither is redistributable in an MIT wheel. The exclusion once
-rested on one line of ``.gitignore``, which the old hatchling backend happened
-to honor; it now lives in ``[tool.uv.build-backend]`` excludes. These tests
-assert it directly, so a build-config change that would ship restricted data
-fails a test rather than reaching PyPI.
+Weights and lookup tables are served from Hugging Face and downloaded on first
+use, so neither belongs in the wheel. The exclusion once rested on one line of
+``.gitignore``, which the old hatchling backend happened to honor; it now lives
+in ``[tool.uv.build-backend]`` excludes. These tests assert it directly, so a
+build-config change that would bundle them fails a test rather than reaching
+PyPI.
 """
 
 from __future__ import annotations
@@ -54,7 +52,7 @@ class TestWheelContents:
             if any(token in name for token in FORBIDDEN)
         ]
         assert offenders == [], (
-            f"the wheel contains non-redistributable data: {offenders}. "
+            f"the wheel bundles HF-served data: {offenders}. "
             "Lookup tables and weights must stay out; see the exclude lists in "
             "pyproject.toml."
         )

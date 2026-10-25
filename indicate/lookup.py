@@ -93,18 +93,25 @@ SHIPPED = frozenset(
 
 #: Directories whose table can be fetched from the model repo.
 #:
-#: The Bengali table is derived entirely from LLM-labeled Eastern Nagari words
-#: and is published with the model assets. The Hindi and Punjabi tables are
-#: deliberately absent: they are derived from
-#: ``data/hindi.csv.gz`` (which blends CC-BY-NC IIT Bombay pairs) and
-#: ``data/punjabi.csv.gz`` (from the IRB-restricted electoral-roll deposit), so
-#: they are not ours to redistribute. Build one locally in a few seconds::
+#: Each published table is built by ``training/build_lookup.py`` from a corpus:
+#: Bengali from LLM-labeled Eastern Nagari words, and Hindi, Punjabi, Kannada and
+#: Malayalam from the corpora committed under ``data/``. Gujarati and Urdu are
+#: built from corpora kept in Instate and are not published; build them locally::
 #:
-#:     uv run --group train python training/build_lookup.py --lang punjabi
+#:     uv run --group train python training/build_lookup.py --lang gujarati \
+#:         --corpus /path/to/gujarati.csv.gz
 #:
 #: ``tests/e2e/test_hf_contract.py`` asserts that every listed table is present
 #: at the pinned repository revision, and that no unlisted table is published.
-DOWNLOADABLE: frozenset[str] = frozenset({"bengali_to_english"})
+DOWNLOADABLE: frozenset[str] = frozenset(
+    {
+        "bengali_to_english",
+        "hindi_to_english",
+        "kannada_to_english",
+        "malayalam_to_english",
+        "punjabi_to_english",
+    }
+)
 
 _HEADER_PREFIX = "#"
 _CACHE: dict[str, Lookup | None] = {}

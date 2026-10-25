@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- Publish the Hindi, Punjabi, Kannada and Malayalam lookup tables to the model
+  repository, so they download on first use as Bengali's does. A pip install
+  now returns table answers (राजशेखर → `rajshekhar`, where the model alone gives
+  `rajshekar`) instead of falling back to the model. Gujarati and Urdu tables
+  are still built locally from Instate corpora.
 - Add `Lookup.get_text` for complete local field transliteration, preserving
   whitespace and punctuation while abstaining on any unresolved word. Add
   `Lookup.with_overrides` for reviewed substitutions and explicit exclusions

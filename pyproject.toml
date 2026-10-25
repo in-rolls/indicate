@@ -184,10 +184,8 @@ venv = ".venv"
 [tool.uv.build-backend]
 module-name = "indicate"
 module-root = ""
-# Neither of these may ship. Weights are HF-hosted and lazy-downloaded. Lookup
-# tables derive from data/hindi.csv.gz (which blends CC-BY-NC IIT Bombay pairs)
-# and data/punjabi.csv.gz (from the restricted roll deposit), so redistributing
-# them in an MIT wheel is a license problem, not a size one. Stated here rather
+# Weights and lookup tables are HF-hosted and downloaded on first use, which
+# keeps them out of the wheel; the tables alone are ~10 MB. Stated here rather
 # than left to .gitignore, which the build backend does not read.
 # tests/e2e/test_wheel_contents.py asserts it.
 source-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]

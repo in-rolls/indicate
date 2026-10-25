@@ -15,7 +15,7 @@
     "keys": 673231,
     "contested_keys": 0,
     "tied_keys": 0,
-    "downloadable": false
+    "downloadable": true
   },
   "muse_spark_2017": {
     "original_sha256": "aacc260bea092f7325a4bdd6271dc9ed005daba3f68d2ba89974a8a383a398a0",

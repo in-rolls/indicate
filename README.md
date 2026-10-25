@@ -84,23 +84,20 @@ pip install indicate
 
 ### For the lookup backend:
 
-Kannada has a local lookup built from the existing electoral word-pair corpus in
-`data/kannada.csv.gz`. Build it with
-`uv run --group train python training/build_lookup.py --lang kannada`, then use
-`indicate transliterate "ಶಿವಪ್ಪ" --from kannada --engine lookup`. Uncovered words
-remain lookup misses; this does not invoke a paid provider. Corpus provenance is
-in `data/kannada.provenance.json`.
-
-Malayalam has a local lookup built from `data/malayalam.csv.gz` (Kerala parallel
-rolls and Lakshadweep spelling harvests). Build it with:
+The Bengali, Hindi, Kannada, Malayalam and Punjabi word tables download from
+the pinned model-assets repository on first use and are then cached:
 
 ```sh
-uv run --group train python training/build_lookup.py --lang malayalam
+indicate transliterate "ಶಿವಪ್ಪ" --from kannada --engine lookup
 indicate transliterate "സുഹൈൽ" --from malayalam --engine lookup
 ```
 
-The corpus and harvest provenance are described in `data/malayalam.md`. The
-table is built locally; lookup misses do not invoke a paid provider.
+Uncovered words remain lookup misses and do not invoke a paid provider. Each
+table is built by `training/build_lookup.py` from a corpus: Hindi, Punjabi,
+Kannada and Malayalam from the ones committed under `data/` (provenance in
+`data/kannada.provenance.json` and `data/malayalam.md`), Bengali from a shared,
+LLM-labeled electoral-name corpus whose multi-million-row CSV is not duplicated
+here.
 
 Gujarati supports a local lookup built from a controlled two-column
 `gujarati,english` corpus. The source corpus stays outside the package:
@@ -113,26 +110,18 @@ indicate transliterate "પટેલ" --from gujarati --engine lookup
 
 Uncovered Gujarati tokens remain lookup misses and do not invoke a paid provider.
 
-The Bengali word table downloads from the pinned model-assets repository on
-first use and is then cached. It is compiled from a shared, LLM-labeled
-electoral-name corpus into one deterministic native-to-Latin lookup; the
-multi-million-row source CSV is not duplicated in this repository or package.
-
-Hindi and Punjabi tables are different: they derive from
-`data/hindi.csv.gz` (which blends CC-BY-NC IIT Bombay pairs) and
-`data/punjabi.csv.gz` (from a restricted electoral-roll deposit), neither of
-which is ours to redistribute under MIT. Build those from a checkout:
+To use a table you built yourself (Gujarati, Urdu, or a rebuilt one), point
+`INDICATE_DATA_DIR` at it:
 
 ```bash
 export INDICATE_DATA_DIR=~/.local/share/indicate     # where your tables live
 uv run --group train python training/build_lookup.py --lang hindi
-uv run --group train python training/build_lookup.py --lang punjabi
 ```
 
 `INDICATE_DATA_DIR` is where the builder writes and where an installed package
-looks first. Without it the table lands inside the checkout, which a
-`pip install`ed copy in `site-packages` will never read. Keep it exported and
-`indicate languages` flips that row from `unavailable` to `ready`:
+looks first, ahead of the published table. Without it the table lands inside the
+checkout, which a `pip install`ed copy in `site-packages` will never read.
+`indicate languages` shows each table's status:
 
 ```
 Direction                 Backend   Status
@@ -142,9 +131,10 @@ punjabi -> english        lookup    ready
                           model     ready
 ```
 
-Without a Hindi or Punjabi table nothing breaks: `lookup` declines every word
-and `model` answers them. Bengali is lookup-only locally, so an unavailable
-table is reported as an error instead of silently returning blank text.
+Without a table for a language that has a model, nothing breaks: `lookup`
+declines every word and `model` answers them. Bengali is lookup-only locally, so
+an unavailable table is reported as an error instead of silently returning blank
+text.
 
 ## 🎯 Usage
 

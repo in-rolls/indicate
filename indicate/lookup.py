@@ -175,6 +175,26 @@ _VERIFY_SAMPLE = 1024
 
 
 @lru_cache(maxsize=1 << 17)
+def _punctuation_bounds(piece: str) -> tuple[int, int]:
+    """Return the span of ``piece`` inside any leading and trailing punctuation.
+
+    Punctuation is any Unicode ``P*`` character, which covers the Arabic comma
+    and curly quotes that :data:`~indicate.normalize.EDGE_NOISE` does not.
+
+    Args:
+        piece: One whitespace-free token.
+
+    Returns:
+        ``(start, end)`` indices of the unpunctuated core.
+    """
+    start, end = 0, len(piece)
+    while start < end and unicodedata.category(piece[start]).startswith("P"):
+        start += 1
+    while end > start and unicodedata.category(piece[end - 1]).startswith("P"):
+        end -= 1
+    return start, end
+
+
 def _latin_word(text: str) -> bool:
     """Require Latin letters and reject letters or marks from other scripts."""
     letters = False
@@ -273,7 +293,11 @@ class Lookup:
         """
         normalized: dict[str, str | None] = {}
         for word, value in overrides.items():
-            key = lookup_key(word)
+            # Key the way get_text queries, or an override written with
+            # Unicode edge punctuation (an Arabic comma, a curly quote) is
+            # stored under a key get_text never asks for.
+            start, end = _punctuation_bounds(word)
+            key = lookup_key(word[start:end])
             if not key or (value is not None and not value.strip()):
                 raise ValueError("Overrides require nonempty keys and replacements")
             if value is not None and not _latin_word(value):
@@ -310,11 +334,7 @@ class Lookup:
                 unicodedata.category(character)[0] in "LM" for character in piece
             ):
                 continue
-            start, end = 0, len(piece)
-            while start < end and unicodedata.category(piece[start]).startswith("P"):
-                start += 1
-            while end > start and unicodedata.category(piece[end - 1]).startswith("P"):
-                end -= 1
+            start, end = _punctuation_bounds(piece)
             hit = self.get(piece[start:end])
             if hit is None or not _latin_word(hit):
                 return None

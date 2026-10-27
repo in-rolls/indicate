@@ -29,7 +29,7 @@ dependencies = [
     "numpy>=1.26",
     "torch>=2.6.0",
     "safetensors>=0.4.0",
-    "huggingface-hub>=0.23",  # lazy-download model weights at first use
+    "huggingface-hub>=0.23,<2",  # lazy-download model weights at first use
     "litellm>=1.0.0",  # For LLM-based transliteration
     "batchlane>=0.1.0",
 ]

@@ -1180,7 +1180,7 @@ train = [
 requires-dist = [
     { name = "batchlane", specifier = ">=0.1.0" },
     { name = "click", specifier = ">=8.0.0" },
-    { name = "huggingface-hub", specifier = ">=0.23" },
+    { name = "huggingface-hub", specifier = ">=0.23,<2" },
     { name = "litellm", specifier = ">=1.0.0" },
     { name = "numpy", specifier = ">=1.26" },
     { name = "safetensors", specifier = ">=0.4.0" },

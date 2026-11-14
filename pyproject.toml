@@ -134,6 +134,9 @@ log_level = "INFO"
 xfail_strict = true
 filterwarnings = [
     "error",
+    # litellm and google-genai mark TypedDict items ReadOnly, a static-only annotation.
+    # Pydantic warns that it will not enforce it; nothing here relies on that.
+    "ignore:.*using the `ReadOnly` qualifier:UserWarning:pydantic[.]_internal[.]_generate_schema",
     'ignore:codecs\.open\(\) is deprecated\. Use open\(\) instead\.:DeprecationWarning',
 ]
 markers = [

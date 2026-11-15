@@ -134,6 +134,9 @@ log_level = "INFO"
 xfail_strict = true
 filterwarnings = [
     "error",
+    # litellm and google-genai mark TypedDict items ReadOnly, a static-only annotation.
+    # Pydantic warns that it will not enforce it; nothing here relies on that.
+    "ignore:.*using the `ReadOnly` qualifier:UserWarning:pydantic[.]_internal[.]_generate_schema",
     'ignore:codecs\.open\(\) is deprecated\. Use open\(\) instead\.:DeprecationWarning',
 ]
 markers = [
@@ -190,11 +193,3 @@ module-root = ""
 # tests/e2e/test_wheel_contents.py asserts it.
 source-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
 wheel-exclude = ["**/saved_weights/**", "**/lookup*.tsv.gz"]
-
-[tool.uv]
-# litellm (every release through 1.106.2) caps filelock<4.0, but filelock 4.0's
-# only breaking change is SoftReadWriteLock's on-disk format, and litellm uses
-# plain FileLock alone. The override admits filelock 4.2.1, which fixes
-# CVE-2026-112940, CVE-2026-112913 and CVE-2026-112907. Remove when litellm
-# lifts the cap.
-override-dependencies = ["filelock>=4.2.1"]

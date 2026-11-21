@@ -30,6 +30,7 @@ pytestmark = pytest.mark.live
 def repo_files() -> set[str]:
     """Every file in the pinned model repo revision."""
     hub = pytest.importorskip("huggingface_hub")
+    httpx = pytest.importorskip("httpx")
     from huggingface_hub.errors import (
         RepositoryNotFoundError,
         RevisionNotFoundError,
@@ -42,8 +43,9 @@ def repo_files() -> set[str]:
         # longer exists means every fresh install is broken; skipping here
         # would let the release path go green on exactly that.
         pytest.fail(f"{HF_REPO}@{HF_REVISION} is gone: {exc}")
-    except Exception as exc:  # pragma: no cover - network dependent
-        # Only genuine unreachability is environmental.
+    except httpx.TransportError as exc:  # pragma: no cover - network dependent
+        # Only genuine unreachability is environmental. An HTTP error from the
+        # Hub (auth, gating, 5xx) is a real answer and fails the test.
         pytest.skip(f"could not reach {HF_REPO}: {exc}")
 
 

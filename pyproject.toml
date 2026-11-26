@@ -32,8 +32,9 @@ dependencies = [
     "torch>=2.9.0; python_version >= '3.14'",
     "safetensors>=0.4.2; python_version < '3.14'",
     "safetensors>=0.5.0; python_version >= '3.14'",
-    "huggingface-hub>=0.23,<3",  # lazy-download model weights at first use
-    "litellm>=1.80.10",  # For LLM-based transliteration
+    "huggingface-hub>=0.34.0,<3",  # lazy-download model weights at first use
+    "litellm>=1.80.10; python_version < '3.14'",
+    "litellm>=1.110.2; python_version >= '3.14'",  # For LLM-based transliteration
     "batchlane>=0.1.0",
 ]
 

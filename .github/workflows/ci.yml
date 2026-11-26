@@ -19,6 +19,7 @@ jobs:
   ci:
     uses: gojiplus/py-canon/.github/workflows/reusable-ci.yml@v1
     with:
+      run-lower-bounds: true
       wheel-import: indicate
       # Measured on CI (fresh clone, no local lookup tables): 76.53%, minus
       # one point of slack. Locally the suite reaches 81%.

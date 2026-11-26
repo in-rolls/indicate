@@ -24,13 +24,13 @@ classifiers = [
 keywords = ["transliterate", "indic", "hindi", "english"]
 requires-python = ">=3.13"
 dependencies = [
-    "click>=8.0.0",
+    "click>=8.4.2",
     "tqdm>=4.60.0",
     "numpy>=2.1.0",
     "torch>=2.6.0",
     "safetensors>=0.4.2",
     "huggingface-hub>=0.23,<3",  # lazy-download model weights at first use
-    "litellm>=1.0.0",  # For LLM-based transliteration
+    "litellm>=1.80.10",  # For LLM-based transliteration
     "batchlane>=0.1.0",
 ]
 
